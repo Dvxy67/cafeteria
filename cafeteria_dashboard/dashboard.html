@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Cafétéria</title>
+    <link rel="stylesheet" href="styles_dashboard.css">
+    <link rel="stylesheet" href="email_styles.css">
+</head>
+
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>📊 Dashboard Cafétéria</h1>
+            <p>Statistiques et analyse des votes quotidiens</p>
+        </div>
+
+        <!-- Section de connexion -->
+        <div class="login-section" id="loginSection">
+            <h2>🔐 Accès Administrateur</h2>
+            <div class="login-form">
+                <input type="password" id="adminPassword" placeholder="Mot de passe administrateur">
+                <button class="login-btn" onclick="login()">Se connecter</button>
+            </div>
+        </div>
+
+        <!-- Contenu principal -->
+        <div class="content" id="mainContent">
+            <div class="loading" id="loading">Chargement des données...</div>
+
+            <!-- Statistiques rapides -->
+            <div class="stats-grid" id="statsGrid" style="display: none;">
+                <div class="stat-card">
+                    <h3>Aujourd'hui</h3>
+                    <div class="stat-value" id="todayTotal">0</div>
+                    <div class="stat-trend">participants</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Mangent</h3>
+                    <div class="stat-value" id="todayOui">0</div>
+                    <div class="stat-trend" id="todayOuiPercent">0%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Ne mangent pas</h3>
+                    <div class="stat-value" id="todayNon">0</div>
+                    <div class="stat-trend" id="todayNonPercent">0%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Moyenne 7 jours</h3>
+                    <div class="stat-value" id="weekAverage">0</div>
+                    <div class="stat-trend">participants/jour</div>
+                </div>
+            </div>
+
+            <!-- Graphiques -->
+            <div class="charts-section" id="chartsSection" style="display: none;">
+                <div class="chart-container">
+                    <h3>📈 Évolution (7 derniers jours)</h3>
+                    <div class="chart" id="trendChart">
+                        <canvas id="trendCanvas" width="400" height="250"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>🥧 Répartition aujourd'hui</h3>
+                    <div class="chart" id="pieChart">
+                        <canvas id="pieCanvas" width="400" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Upload Image (Admin uniquement) -->
+            <div class="image-upload-section" id="imageUploadSection" style="display: none;">
+                <h3>🖼️ Image du menu</h3>
+
+                <div class="upload-container">
+                    <div class="upload-area" onclick="document.getElementById('imageUpload').click()">
+                        <div class="upload-icon">📁</div>
+                        <p>Cliquez pour sélectionner une image du menu</p>
+                        <small>JPG, PNG, GIF, WebP - Max 5MB</small>
+                    </div>
+
+                    <input type="file" id="imageUpload" accept="image/*" style="display: none;"
+                        onchange="previewImage()">
+
+                    <!-- Aperçu -->
+                    <div id="imagePreview"></div>
+
+                    <!-- Boutons -->
+                    <div class="upload-actions">
+                        <button class="action-btn btn-upload" id="uploadBtn" onclick="uploadImage()" disabled>
+                            📤 Uploader
+                        </button>
+                        <button class="action-btn btn-refresh" onclick="refreshCurrentImage()">
+                            🔄 Actualiser
+                        </button>
+                    </div>
+
+                    <!-- Image actuelle -->
+                    <div id="currentImageDisplay"></div>
+                </div>
+            </div>
+
+            <!-- Historique -->
+            <div class="history-section" id="historySection" style="display: none;">
+                <h3>📅 Historique détaillé</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Mangent</th>
+                            <th>Ne mangent pas</th>
+                            <th>Total</th>
+                            <th>% Cantine</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions-section" id="actionsSection" style="display: none;">
+                <button class="action-btn btn-export" onclick="exportFullData()">
+                    📊 Exporter données
+                </button>
+                <button class="action-btn btn-email" onclick="toggleEmailConfig()">
+                    📧 Configuration email
+                </button>
+                <button class="action-btn btn-refresh" onclick="refreshData()">
+                    🔄 Actualiser
+                </button>
+                <button class="action-btn btn-clear" onclick="clearOldData()">
+                    🗑️ Nettoyer anciennes données
+                </button>
+            </div>
+
+            <!-- Configuration email améliorée -->
+            <div class="email-config" id="emailConfig">
+                <h4>📧 Configuration d'envoi automatique améliorée</h4>
+
+                <!-- Status du planificateur -->
+                <div class="auto-email-status status-inactive" id="schedulerStatus">
+                    <span>🔴 Envoi automatique désactivé</span>
+                </div>
+
+                <!-- Section destinataires multiples -->
+                <div class="recipients-section">
+                    <h5>📬 Destinataires</h5>
+                    <div id="recipientsList">
+                        <div class="recipient-input">
+                            <input type="email" placeholder="Email destinataire "
+                                class="recipient-email">
+                            <button class="remove-recipient" onclick="removeRecipient(this)"
+                                style="display: none;">Supprimer</button>
+                        </div>
+                    </div>
+                    <button class="add-recipient" onclick="addRecipient()">+ Ajouter un destinataire</button>
+                </div>
+
+                <!-- Configuration horaire -->
+                <div class="schedule-section">
+                    <h5>⏰ Planification</h5>
+                    <div class="schedule-controls">
+                        <label>Heure d'envoi :</label>
+                        <input type="time" id="emailTime" value="18:00">
+
+                        <label>Jours d'envoi :</label>
+                        <select id="emailDays" multiple style="height: 80px;">
+                            <option value="1" selected>Lundi</option>
+                            <option value="2" selected>Mardi</option>
+                            <option value="3" selected>Mercredi</option>
+                            <option value="4" selected>Jeudi</option>
+                            <option value="5" selected>Vendredi</option>
+                            <option value="6">Samedi</option>
+                            <option value="0">Dimanche</option>
+                        </select>
+                    </div>
+                    <div class="next-send-info" id="nextSendInfo"></div>
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="email-buttons">
+                    <button class="action-btn btn-email" onclick="sendManualEmail()">
+                        📧 Envoyer maintenant
+                    </button>
+                    <button class="action-btn btn-email" onclick="setupAutoEmail()">
+                        ⏰ Activer envoi automatique
+                    </button>
+                    <button class="stop-scheduler" onclick="stopAutoEmail()" style="display: none;" id="stopButton">
+                        Arrêter l'envoi automatique
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="module" src="config.js"></script>
+    <script type="module" src="dashboard.js"></script>
+    <script type="module" src="email_service.js"></script>
+</body>
+
+</html>
