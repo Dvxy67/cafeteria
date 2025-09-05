@@ -678,80 +678,6 @@ body::after {
     font-weight: 200;
 }
 
-/* Zone administrateur */
-.admin-toggle, .admin-section, .admin-login {
-    margin-top: 20px;
-    padding: 20px 40px;
-    text-align: center;
-    background: rgba(240, 240, 240, 0.3);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.admin-toggle button {
-    background: none;
-    border: none;
-    color: #999;
-    font-size: 11px;
-    cursor: pointer;
-    font-weight: 300;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    transition: color 0.3s ease;
-}
-
-.admin-toggle button:hover {
-    color: #666;
-}
-
-.admin-login h4 {
-    color: #555;
-    margin-bottom: 20px;
-    font-size: 16px;
-    font-weight: 300;
-    letter-spacing: 1px;
-}
-
-.admin-login input[type="password"] {
-    width: 100%;
-    padding: 16px 0;
-    border: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    font-size: 14px;
-    background: transparent;
-    outline: none;
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.admin-btn {
-    background: linear-gradient(135deg, #666 0%, #888 100%);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-    margin: 5px;
-    font-size: 11px;
-    border-radius: 20px;
-    font-weight: 400;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    transition: all 0.3s ease;
-}
-
-.admin-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.admin-btn.danger {
-    background: linear-gradient(135deg, #c44 0%, #e55 100%);
-}
-
-.admin-btn.logout {
-    background: linear-gradient(135deg, #888 0%, #aaa 100%);
-}
-
 /* Styles pour la modal d'image */
 .image-modal {
     display: none;
@@ -847,7 +773,7 @@ body::after {
         margin: 10px;
     }
     
-    .header, .content, .admin-toggle, .admin-section, .admin-login {
+    .header, .content {
         padding-left: 30px;
         padding-right: 30px;
     }

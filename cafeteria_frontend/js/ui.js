@@ -1,8 +1,7 @@
-// ui.js - Gestion de l'interface utilisateur avec images
+// ui.js - Interface utilisateur ultra-simplifiée
 
 import { appState, CONFIG } from './config.js';
 
-// Variable pour stocker l'URL de l'image actuelle
 let currentImageURL = CONFIG.IMAGE_URL;
 
 // Mettre à jour l'état du bouton de soumission
@@ -35,10 +34,17 @@ export function updateResultsDisplay() {
     const countOui = appState.votes.oui ? appState.votes.oui.length : 0;
     const countNon = appState.votes.non ? appState.votes.non.length : 0;
     
-    document.getElementById('countOui').textContent = countOui;
-    document.getElementById('countNon').textContent = countNon;
+    // Mettre à jour les compteurs
+    const countOuiEl = document.getElementById('countOui');
+    const countNonEl = document.getElementById('countNon');
     
+    if (countOuiEl) countOuiEl.textContent = countOui;
+    if (countNonEl) countNonEl.textContent = countNon;
+    
+    // Mettre à jour la liste des participants
     const participantsList = document.getElementById('participantsList');
+    if (!participantsList) return;
+    
     participantsList.innerHTML = '';
     
     if (appState.votes.oui && appState.votes.oui.length > 0) {
@@ -72,71 +78,75 @@ export function updateResultsDisplay() {
     }
 }
 
-// NOUVELLE FONCTION: Mettre à jour l'image du menu
+// Mettre à jour l'image du menu
 export function updateMenuImage(imageURL) {
     currentImageURL = imageURL;
     
-    // Mettre à jour l'image dans la modal si elle est ouverte
     const modalImage = document.getElementById('modalImage');
     if (modalImage) {
         modalImage.src = imageURL;
+        modalImage.onerror = function() {
+            console.warn('⚠️ Erreur chargement image, fallback vers défaut');
+            this.src = CONFIG.IMAGE_URL;
+        };
+    }
+    
+    const viewImageBtn = document.getElementById('viewImageBtn');
+    if (viewImageBtn) {
+        viewImageBtn.disabled = false;
+        viewImageBtn.style.opacity = '1';
     }
 }
 
 // Mettre à jour le statut du vote et l'affichage
 export function updateVotingStatusDisplay() {
+    const formSection = document.getElementById('formSection');
+    const successMessage = document.getElementById('successMessage');
+    const closedMessage = document.getElementById('closedMessage');
+    const resultsSection = document.getElementById('resultsSection');
+    
     if (!appState.isVotingOpen) {
-        document.getElementById('formSection').style.display = 'none';
-        document.getElementById('closedMessage').style.display = 'block';
-        if (appState.isAdminLoggedIn) {
-            document.getElementById('resultsSection').style.display = 'block';
-        }
-    } else if (appState.hasVotedToday && !appState.isAdminLoggedIn) {
-        document.getElementById('formSection').style.display = 'none';
-        document.getElementById('successMessage').style.display = 'block';
-    } else if (appState.hasVotedToday && appState.isAdminLoggedIn) {
-        document.getElementById('formSection').style.display = 'none';
-        document.getElementById('resultsSection').style.display = 'block';
+        // Vote fermé
+        if (formSection) formSection.style.display = 'none';
+        if (successMessage) successMessage.style.display = 'none';
+        if (closedMessage) closedMessage.style.display = 'block';
+        if (resultsSection) resultsSection.style.display = 'block';
+    } else if (appState.hasVotedToday) {
+        // A déjà voté
+        if (formSection) formSection.style.display = 'none';
+        if (closedMessage) closedMessage.style.display = 'none';
+        if (successMessage) successMessage.style.display = 'block';
+        if (resultsSection) resultsSection.style.display = 'block';
+    } else {
+        // Peut encore voter
+        if (formSection) formSection.style.display = 'block';
+        if (successMessage) successMessage.style.display = 'none';
+        if (closedMessage) closedMessage.style.display = 'none';
+        if (resultsSection) resultsSection.style.display = 'none';
     }
 }
 
-// Afficher la modal d'image - maintenant accessible à tous
+// Afficher la modal d'image
 export function showImageModal() {
     const modal = document.getElementById('imageModal');
     const modalImage = document.getElementById('modalImage');
     const imageTitle = document.getElementById('imageTitle');
     
-    modalImage.src = currentImageURL;
-    imageTitle.textContent = `Menu du jour - ${new Date().toLocaleDateString('fr-FR')}`;
+    if (modalImage) modalImage.src = currentImageURL;
+    if (imageTitle) imageTitle.textContent = `Menu du jour - ${new Date().toLocaleDateString('fr-FR')}`;
     
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
 }
 
 // Fermer la modal d'image
 export function closeImageModal() {
     const modal = document.getElementById('imageModal');
-    modal.classList.remove('show');
-    document.body.style.overflow = '';
-}
-
-// NOUVELLE FONCTION: Prévisualiser l'image sélectionnée pour upload
-export function previewImage() {
-    const fileInput = document.getElementById('imageUpload');
-    const preview = document.getElementById('imagePreview');
-    const file = fileInput.files[0];
-    
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `
-                <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Aperçu :</p>
-                <img src="${e.target.result}" alt="Aperçu" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 1px solid #ddd;">
-            `;
-        };
-        reader.readAsDataURL(file);
-    } else {
-        preview.innerHTML = '';
+    if (modal) {
+        modal.classList.remove('show');
+        document.body.style.overflow = '';
     }
 }
 
@@ -144,8 +154,6 @@ export function previewImage() {
 export function setupEventListeners() {
     const userName = document.getElementById('userName');
     const radioButtons = document.querySelectorAll('input[name="cantine"]');
-    const adminPassword = document.getElementById('adminPassword');
-    const imageUpload = document.getElementById('imageUpload');
     
     if (userName) {
         userName.addEventListener('input', updateSubmitButton);
@@ -154,27 +162,16 @@ export function setupEventListeners() {
     radioButtons.forEach(radio => {
         radio.addEventListener('change', updateSubmitButton);
     });
-    
-    if (adminPassword) {
-        adminPassword.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const { checkAdminPassword } = window.adminFunctions;
-                checkAdminPassword();
+
+    // Fermer la modal en cliquant en dehors
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        imageModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
             }
         });
     }
-
-    // Écouteur pour l'aperçu de l'image
-    if (imageUpload) {
-        imageUpload.addEventListener('change', previewImage);
-    }
-
-    // Fermer la modal en cliquant en dehors
-    document.getElementById('imageModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeImageModal();
-        }
-    });
 
     // Fermer la modal avec Escape
     document.addEventListener('keydown', function(e) {

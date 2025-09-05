@@ -27,7 +27,7 @@
     <div class="image-modal" id="imageModal">
         <div class="image-modal-content">
             <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
-            <img id="modalImage" src="menu_18_08.png" alt="Image">
+            <img id="modalImage" src="" alt="Menu du jour">
             <div class="image-title" id="imageTitle">Menu du jour</div>
         </div>
     </div>
@@ -53,7 +53,7 @@
                 <p>Chargement...</p>
             </div>
 
-            <!-- Section Image du Menu - Améliorée -->
+            <!-- Section Image du Menu -->
             <div class="image-section" id="imageSection">
                 <div class="image-section-title">Menu du jour</div>
                 <button class="view-image-btn" onclick="showImageModal()" id="viewImageBtn">
@@ -93,7 +93,7 @@
                 <p style="font-size: 12px; color: #999; margin-top: 15px; letter-spacing: 1px;">Les résultats se mettent à jour en temps réel pour tous les utilisateurs.</p>
             </div>
 
-            <!-- Section Résultats -->
+            <!-- Section Résultats (visible après vote ou fermeture) -->
             <div class="results-section" id="resultsSection">
                 <div class="results-title">Résultats du jour</div>
                 
@@ -118,166 +118,6 @@
                 Le vote est fermé pour aujourd'hui<br>
                 <small style="font-size: 11px; color: #999; margin-top: 10px; display: block; letter-spacing: 1px;">Les votes ferment chaque jour à 19h00</small>
             </div>
-        </div>
-
-        <!-- Zone administrateur -->
-        <div class="admin-toggle" id="adminToggleSection">
-            <button onclick="toggleAdminLogin()">Administration</button>
-        </div>
-
-        <div class="admin-login" id="adminLogin" style="display: none;">
-            <h4>Accès Administrateur</h4>
-            <input type="password" id="adminPassword" placeholder="Mot de passe">
-            <button class="admin-btn" onclick="checkAdminPassword()" style="width: 100%; margin: 10px 0;">Se connecter</button>
-            <button class="admin-btn" onclick="hideAdminLogin()" style="background: #ccc;">Annuler</button>
-        </div>
-
-        <!-- Section de gestion d'images (à ajouter dans le HTML après la section admin) -->
-<div class="admin-section" id="imageManagementSection" style="display: none;">
-    <h4 style="margin-bottom: 20px; font-weight: 300; color: #333;">Gestion du Menu Image</h4>
-    
-    <!-- Affichage de l'image actuelle -->
-    <div id="currentImageDisplay" style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.5); border-radius: 12px;">
-        <p style="color: #999; font-size: 12px; font-style: italic;">Chargement de l'image...</p>
-    </div>
-    
-    <!-- Upload d'une nouvelle image -->
-    <div style="margin-bottom: 20px;">
-        <label for="imageUpload" style="display: block; margin-bottom: 10px; color: #666; font-size: 12px; font-weight: 300; letter-spacing: 1px; text-transform: uppercase;">
-            Nouvelle image du menu :
-        </label>
-        <input type="file" id="imageUpload" accept="image/*" style="
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid rgba(0, 0, 0, 0.1); 
-            border-radius: 8px; 
-            background: rgba(255, 255, 255, 0.8);
-            font-size: 13px;
-            margin-bottom: 10px;
-        ">
-        
-        <!-- Aperçu de l'image sélectionnée -->
-        <div id="imagePreview" style="text-align: center; margin-bottom: 15px;"></div>
-        
-        <div style="display: flex; gap: 10px;">
-            <button class="admin-btn" onclick="uploadImage()" id="uploadBtn" style="flex: 1;">
-                📤 Uploader l'image
-            </button>
-            <button class="admin-btn danger" onclick="deleteCurrentImage()" id="deleteImageBtn" style="flex: 1;">
-                🗑️ Supprimer l'image
-            </button>
-        </div>
-    </div>
-    
-    <!-- Informations sur les images -->
-    <div style="
-        padding: 15px; 
-        background: rgba(240, 240, 255, 0.3); 
-        border-radius: 8px; 
-        border-left: 3px solid #666;
-        margin-bottom: 20px;
-    ">
-        <h5 style="margin-bottom: 8px; color: #333; font-size: 13px; font-weight: 400;">ℹ️ Informations :</h5>
-        <ul style="color: #666; font-size: 11px; line-height: 1.6; margin: 0; padding-left: 15px;">
-            <li>Formats acceptés : JPG, PNG, GIF, WebP</li>
-            <li>Taille maximale : 5 MB</li>
-            <li>L'image sera automatiquement visible par tous les utilisateurs</li>
-            <li>Une seule image par jour (remplace l'ancienne si elle existe)</li>
-        </ul>
-    </div>
-</div>
-
-<!-- CSS supplémentaire pour les styles de gestion d'images -->
-<style>
-/* Styles pour l'input file personnalisé */
-#imageUpload::-webkit-file-upload-button {
-    background: linear-gradient(135deg, #666 0%, #888 100%);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 11px;
-    margin-right: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 400;
-}
-
-#imageUpload::-webkit-file-upload-button:hover {
-    background: linear-gradient(135deg, #555 0%, #777 100%);
-}
-
-/* Styles pour Firefox */
-#imageUpload::file-selector-button {
-    background: linear-gradient(135deg, #666 0%, #888 100%);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 11px;
-    margin-right: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 400;
-}
-
-#imageUpload::file-selector-button:hover {
-    background: linear-gradient(135deg, #555 0%, #777 100%);
-}
-
-/* Animation pour l'aperçu d'image */
-#imagePreview img, #currentImageDisplay img {
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-#imagePreview img:hover, #currentImageDisplay img:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* Styles pour les boutons de gestion d'images */
-.admin-btn:disabled {
-    background: #ccc !important;
-    cursor: not-allowed !important;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-.admin-btn:disabled::before {
-    display: none !important;
-}
-
-/* Responsive pour la gestion d'images */
-@media (max-width: 768px) {
-    #imageManagementSection {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-    
-    #currentImageDisplay img, #imagePreview img {
-        max-width: 150px !important;
-        max-height: 120px !important;
-    }
-    
-    #imageManagementSection div[style*="flex"] {
-        flex-direction: column;
-    }
-    
-    #imageManagementSection div[style*="flex"] .admin-btn {
-        margin-bottom: 10px;
-    }
-}
-</style>
-
-        <div class="admin-section" id="adminSection" style="display: none;">
-            <h4 style="margin-bottom: 15px; font-weight: 300;">Actions administrateur</h4>
-            <button class="admin-btn" onclick="exportResults()">Exporter</button>
-            <button class="admin-btn" onclick="viewResults()">Résultats</button>
-            <button class="admin-btn danger" onclick="resetDaily()">Reset</button>
-            <button class="admin-btn logout" onclick="logout()">Déconnexion</button>
         </div>
     </div>
 
