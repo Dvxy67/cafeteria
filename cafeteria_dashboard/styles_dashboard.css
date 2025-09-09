@@ -52,7 +52,7 @@ body::before {
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     color: white;
-    padding: 40px 40px;
+    padding: 40px;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -285,6 +285,7 @@ body::before {
     padding: 32px 28px;
     margin-bottom: 32px;
     transition: all 0.3s ease;
+    overflow-x: auto;
 }
 
 .history-section:hover {
@@ -410,180 +411,7 @@ body::before {
     transform: translateY(-1px);
 }
 
-.loading {
-    text-align: center;
-    padding: 40px 20px;
-    color: #6b7280;
-    font-size: 15px;
-}
-
-.email-config {
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 16px;
-    padding: 24px;
-    margin-top: 24px;
-    display: none;
-}
-
-.email-config h4 {
-    color: #111827;
-    margin-bottom: 16px;
-    font-size: 16px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.email-config input {
-    width: 100%;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 8px;
-    margin-bottom: 12px;
-    font-size: 14px;
-    color: #374151;
-    transition: all 0.2s ease;
-}
-
-.email-config input::placeholder {
-    color: #6b7280;
-}
-
-.email-config input:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.6);
-    border-color: rgba(59, 130, 246, 0.6);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.email-buttons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.config-note {
-    background: rgba(219, 234, 254, 0.3);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border: 1px solid rgba(147, 197, 253, 0.4);
-    border-radius: 12px;
-    padding: 16px;
-    margin-top: 16px;
-}
-
-.config-note h5 {
-    color: #1e40af;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.config-note p {
-    color: #1e3a8a;
-    font-size: 12px;
-    line-height: 1.4;
-    margin: 4px 0;
-}
-
-.config-note code {
-    background: rgba(255, 255, 255, 0.3);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    color: #1e3a8a;
-}
-
-.email-status {
-    margin-top: 16px;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-}
-
-.email-status.configured {
-    background: rgba(16, 185, 129, 0.2);
-    color: #047857;
-    border: 1px solid rgba(16, 185, 129, 0.4);
-}
-
-.email-status.not-configured {
-    background: rgba(245, 158, 11, 0.2);
-    color: #92400e;
-    border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-@media (max-width: 768px) {
-    body {
-        padding: 16px;
-    }
-    
-    /*.charts-section {
-        grid-template-columns: 1fr;
-    }*/
-    
-    .header, .login-section, .content {
-        padding: 24px;
-    }
-    
-    .login-section {
-        padding: 40px 24px;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-    
-    .actions-section {
-        grid-template-columns: 1fr;
-    }
-    
-    .email-buttons {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 480px) {
-    .dashboard {
-        border-radius: 16px;
-    }
-    
-    .header h1 {
-        font-size: 20px;
-    }
-    
-    .stat-value {
-        font-size: 28px;
-    }
-    
-    .history-table th,
-    .history-table td {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-}
-
-.charts-section {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 20px !important;
-    margin-bottom: 32px;
-}
-
-/* Styles pour l'upload d'image */
+/* UPLOAD D'IMAGE */
 .image-upload-section {
     background: rgba(255, 255, 255, 0.25);
     backdrop-filter: blur(15px);
@@ -656,10 +484,6 @@ body::before {
     display: none;
 }
 
-#imagePreview.has-image {
-    display: block;
-}
-
 #imagePreview img {
     max-width: 200px;
     max-height: 150px;
@@ -709,16 +533,287 @@ body::before {
     border-radius: 8px;
 }
 
+.loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+.email-config {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+    display: none;
+}
+
+.email-config h4 {
+    color: #111827;
+    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.email-config input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #374151;
+    transition: all 0.2s ease;
+}
+
+.email-config input::placeholder {
+    color: #6b7280;
+}
+
+.email-config input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.email-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.email-status {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.email-status.configured {
+    background: rgba(16, 185, 129, 0.2);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.email-status.not-configured {
+    background: rgba(245, 158, 11, 0.2);
+    color: #92400e;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Tablette landscape */
+@media (max-width: 1024px) {
+    body {
+        padding: 20px;
+    }
+    
+    .header, .content {
+        padding: 32px 24px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    
+    .charts-section {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .actions-section {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Tablette portrait */
 @media (max-width: 768px) {
+    body {
+        padding: 16px;
+    }
+    
+    .dashboard {
+        border-radius: 20px;
+    }
+    
+    .header {
+        padding: 32px 24px;
+    }
+    
+    .header h1 {
+        font-size: 24px;
+    }
+    
+    .header p {
+        font-size: 14px;
+    }
+    
+    .content {
+        padding: 24px;
+    }
+    
+    .login-section {
+        padding: 60px 24px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .chart {
+        height: 250px;
+    }
+    
+    .history-section {
+        padding: 24px 20px;
+    }
+    
+    .history-table th,
+    .history-table td {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    
+    .actions-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .email-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .image-upload-section {
+        padding: 24px 20px;
+    }
+    
     .upload-actions {
         flex-direction: column;
     }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    body {
+        padding: 12px;
+    }
+    
+    .dashboard {
+        border-radius: 16px;
+    }
+    
+    .header {
+        padding: 24px 20px;
+    }
+    
+    .header h1 {
+        font-size: 20px;
+    }
+    
+    .content {
+        padding: 20px;
+    }
+    
+    .login-section {
+        padding: 40px 20px;
+    }
+    
+    .login-form {
+        max-width: 280px;
+    }
+    
+    .stat-card {
+        padding: 20px 16px;
+    }
+    
+    .stat-value {
+        font-size: 28px;
+    }
+    
+    .chart {
+        height: 200px;
+    }
+    
+    .chart-container {
+        padding: 20px 16px;
+    }
+    
+    .history-section {
+        padding: 20px 16px;
+    }
+    
+    .history-table th,
+    .history-table td {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .action-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .image-upload-section {
+        padding: 20px 16px;
+    }
     
     .upload-area {
-        padding: 24px;
+        padding: 20px 16px;
     }
     
     .upload-icon {
         font-size: 36px;
     }
+    
+    .email-config {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 360px) {
+    body {
+        padding: 8px;
+    }
+    
+    .header, .content, .login-section {
+        padding: 16px;
+    }
+    
+    .stat-card, .chart-container, .history-section, .image-upload-section {
+        padding: 16px;
+    }
+    
+    .history-table th,
+    .history-table td {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+}
+
+/* Corrections pour débordements */
+.content > * {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.chart canvas {
+    max-width: 100%;
+    height: auto;
 }
