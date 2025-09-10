@@ -1,17 +1,17 @@
 # .github/workflows/daily-email.yml
-name: Envoi Email Cafétéria Automatique
+name: Envoi Email Cafeteria Automatique
 
 on:
   schedule:
-    # Tous les jours à 18h00 UTC (19h CET / 20h CEST)
-    - cron: '10 13 * * 1-5'  # Lundi à Vendredi uniquement
+    # Tous les jours à 15h10 CET/CEST (13h10 UTC)
+    - cron: '30 13 * * 1-5'  # Lundi à Vendredi uniquement
   # Permet aussi de déclencher manuellement
   workflow_dispatch:
     inputs:
       force_send:
-        description: 'Forcer lenvoi même si pas configuré'
+        description: 'Forcer envoi meme si pas configure'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -326,3 +326,4 @@ jobs:
         run: |
           rm -f email-service.js
           echo "🧹 Nettoyage terminé"
+
