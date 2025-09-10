@@ -1,0 +1,328 @@
+# .github/workflows/daily-email.yml
+name: Envoi Email Cafétéria Automatique
+
+on:
+  schedule:
+    # Tous les jours à 18h00 UTC (19h CET / 20h CEST)
+    - cron: '00 15 * * 1-5'  # Lundi à Vendredi uniquement
+  # Permet aussi de déclencher manuellement
+  workflow_dispatch:
+    inputs:
+      force_send:
+        description: 'Forcer lenvoi même si pas configuré'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  send-daily-email:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm init -y
+          npm install @emailjs/nodejs firebase-admin
+
+      - name: Create email service
+        run: |
+          cat > email-service.js << 'EOF'
+          const emailjs = require('@emailjs/nodejs');
+          const admin = require('firebase-admin');
+
+          // Configuration Firebase
+          const firebaseConfig = {
+            type: "service_account",
+            project_id: process.env.FIREBASE_PROJECT_ID,
+            private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+            private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            client_email: process.env.FIREBASE_CLIENT_EMAIL,
+            client_id: process.env.FIREBASE_CLIENT_ID,
+            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            token_uri: "https://oauth2.googleapis.com/token",
+            auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+            client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
+          };
+
+          // Initialiser Firebase Admin
+          admin.initializeApp({
+            credential: admin.credential.cert(firebaseConfig),
+            databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`
+          });
+
+          const db = admin.firestore();
+
+          async function main() {
+            try {
+              console.log('🚀 Démarrage du service d\'envoi d\'emails...');
+              
+              // 1. Récupérer la configuration email depuis Firebase
+              const emailConfig = await getEmailConfig();
+              
+              if (!emailConfig || !emailConfig.enabled) {
+                console.log('❌ Envoi automatique désactivé ou non configuré');
+                if (process.env.FORCE_SEND !== 'true') {
+                  return;
+                }
+              }
+
+              // 2. Vérifier si c'est un jour configuré pour l'envoi
+              const today = new Date();
+              const dayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
+              
+              if (emailConfig && emailConfig.days && !emailConfig.days.includes(dayOfWeek)) {
+                console.log(`❌ Aujourd'hui (${getDayName(dayOfWeek)}) n'est pas configuré pour l'envoi`);
+                return;
+              }
+
+              // 3. Récupérer les données de votes du jour
+              const todayVotes = await getTodayVotes();
+              
+              // 4. Récupérer les destinataires
+              const recipients = emailConfig.recipients || [];
+              
+              if (recipients.length === 0) {
+                console.log('❌ Aucun destinataire configuré');
+                return;
+              }
+
+              // 5. Envoyer les emails
+              await sendDailyReport(emailConfig, todayVotes, recipients);
+              
+              console.log('✅ Envoi terminé avec succès');
+              
+            } catch (error) {
+              console.error('❌ Erreur lors de l\'envoi:', error);
+              process.exit(1);
+            }
+          }
+
+          async function getEmailConfig() {
+            try {
+              const configRef = db.collection('email_config').doc('settings');
+              const configSnap = await configRef.get();
+              
+              if (!configSnap.exists) {
+                console.log('⚠️ Aucune configuration email trouvée dans Firebase');
+                return null;
+              }
+              
+              const config = configSnap.data();
+              console.log('📧 Configuration email récupérée:', {
+                enabled: config.enabled,
+                recipients: config.recipients?.length || 0,
+                days: config.days
+              });
+              
+              return config;
+              
+            } catch (error) {
+              console.error('Erreur récupération config:', error);
+              return null;
+            }
+          }
+
+          async function getTodayVotes() {
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const votesRef = db.collection('votes').doc(today);
+              const votesSnap = await votesRef.get();
+              
+              if (!votesSnap.exists) {
+                console.log('📊 Aucun vote pour aujourd\'hui');
+                return { oui: [], non: [] };
+              }
+              
+              const votesData = votesSnap.data();
+              const votes = votesData.votes || {};
+              
+              console.log('📊 Votes récupérés:', {
+                oui: votes.oui?.length || 0,
+                non: votes.non?.length || 0
+              });
+              
+              return votes;
+              
+            } catch (error) {
+              console.error('Erreur récupération votes:', error);
+              return { oui: [], non: [] };
+            }
+          }
+
+          async function sendDailyReport(emailConfig, votes, recipients) {
+            const oui = votes.oui || [];
+            const non = votes.non || [];
+            const total = oui.length + non.length;
+
+            // Calculer les statistiques
+            const ouiPercent = total > 0 ? Math.round((oui.length / total) * 100) : 0;
+            const nonPercent = total > 0 ? Math.round((non.length / total) * 100) : 0;
+
+            // Données communes pour le template
+            const templateData = {
+              date_fr: new Date().toLocaleDateString('fr-FR', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              }),
+              time: new Date().toLocaleTimeString('fr-FR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }),
+              oui_count: oui.length,
+              non_count: non.length,
+              total_count: total,
+              oui_percent: ouiPercent,
+              non_percent: nonPercent,
+              average_week: await getWeeklyAverage()
+            };
+
+            console.log('📧 Préparation envoi vers', recipients.length, 'destinataire(s)');
+            
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Initialiser EmailJS
+            emailjs.init({
+              publicKey: emailConfig.emailConfig?.publicKey || process.env.EMAILJS_PUBLIC_KEY,
+              privateKey: process.env.EMAILJS_PRIVATE_KEY
+            });
+
+            for (let i = 0; i < recipients.length; i++) {
+              const email = recipients[i];
+              
+              try {
+                console.log(`📧 Envoi ${i + 1}/${recipients.length} vers: ${email}`);
+                
+                const uniqueTemplateData = {
+                  ...templateData,
+                  to_email: email,
+                  unique_send_id: `github_${Date.now()}_${i}`,
+                  send_source: 'github_actions'
+                };
+
+                await emailjs.send(
+                  emailConfig.emailConfig?.serviceId || process.env.EMAILJS_SERVICE_ID,
+                  emailConfig.emailConfig?.templateId || process.env.EMAILJS_TEMPLATE_ID,
+                  uniqueTemplateData
+                );
+
+                console.log(`✅ Succès pour ${email}`);
+                successCount++;
+                
+                // Attendre entre les envois pour éviter le rate limiting
+                if (i < recipients.length - 1) {
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+              } catch (error) {
+                console.error(`❌ Erreur envoi pour ${email}:`, error);
+                errorCount++;
+              }
+            }
+
+            // Enregistrer le résultat de l'envoi
+            await saveEmailLog(successCount, errorCount, total);
+            
+            console.log(`📊 Résultat final: ${successCount} succès, ${errorCount} erreurs`);
+          }
+
+          async function getWeeklyAverage() {
+            try {
+              const oneWeekAgo = new Date();
+              oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+              
+              let totalVotes = 0;
+              let days = 0;
+              
+              for (let i = 0; i < 7; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateKey = date.toISOString().split('T')[0];
+                
+                const votesRef = db.collection('votes').doc(dateKey);
+                const votesSnap = await votesRef.get();
+                
+                if (votesSnap.exists) {
+                  const votesData = votesSnap.data();
+                  const votes = votesData.votes || {};
+                  const dayTotal = (votes.oui?.length || 0) + (votes.non?.length || 0);
+                  totalVotes += dayTotal;
+                  days++;
+                }
+              }
+              
+              return days > 0 ? Math.round(totalVotes / days) : 0;
+              
+            } catch (error) {
+              console.error('Erreur calcul moyenne:', error);
+              return 0;
+            }
+          }
+
+          async function saveEmailLog(successCount, errorCount, votesTotal) {
+            try {
+              const today = new Date().toISOString().split('T')[0];
+              const logRef = db.collection('email_logs').doc(today);
+              
+              await logRef.set({
+                date: today,
+                timestamp: new Date().toISOString(),
+                success_count: successCount,
+                error_count: errorCount,
+                votes_total: votesTotal,
+                source: 'github_actions'
+              });
+              
+              console.log('📝 Log d\'envoi sauvegardé');
+              
+            } catch (error) {
+              console.error('Erreur sauvegarde log:', error);
+            }
+          }
+
+          function getDayName(dayNumber) {
+            const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+            return days[dayNumber];
+          }
+
+          // Exécuter le script
+          main();
+          EOF
+
+      - name: Send daily email
+        env:
+          # Firebase Service Account
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_PRIVATE_KEY_ID: ${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_CLIENT_ID: ${{ secrets.FIREBASE_CLIENT_ID }}
+          FIREBASE_CLIENT_CERT_URL: ${{ secrets.FIREBASE_CLIENT_CERT_URL }}
+          
+          # EmailJS
+          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
+          
+          # Options
+          FORCE_SEND: ${{ github.event.inputs.force_send }}
+          
+        run: node email-service.js
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f email-service.js
+          echo "🧹 Nettoyage terminé"

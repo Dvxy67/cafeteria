@@ -135,11 +135,19 @@
                 </button>
             </div>
 
-            <!-- Configuration email améliorée -->
+            <!-- Configuration email améliorée avec GitHub Actions -->
             <div class="email-config" id="emailConfig">
-                <h4>📧 Configuration d'envoi automatique améliorée</h4>
+                <h4>📧 Configuration d'envoi automatique avec GitHub Actions</h4>
 
-                <!-- Status du planificateur -->
+                <!-- NOUVEAU : Status GitHub Actions -->
+                <div id="githubActionsStatus" class="github-status inactive">
+                    <span>🔴 GitHub Actions: Vérification...</span>
+                    <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                        Initialisation en cours...
+                    </div>
+                </div>
+
+                <!-- Status du planificateur local -->
                 <div class="auto-email-status status-inactive" id="schedulerStatus">
                     <span>🔴 Envoi automatique désactivé</span>
                 </div>
@@ -149,10 +157,8 @@
                     <h5>📬 Destinataires</h5>
                     <div id="recipientsList">
                         <div class="recipient-input">
-                            <input type="email" placeholder="Email destinataire "
-                                class="recipient-email">
-                            <button class="remove-recipient" onclick="removeRecipient(this)"
-                                style="display: none;">Supprimer</button>
+                            <input type="email" placeholder="Email destinataire" class="recipient-email">
+                            <button class="remove-recipient" onclick="removeRecipient(this)" style="display: none;">Supprimer</button>
                         </div>
                     </div>
                     <button class="add-recipient" onclick="addRecipient()">+ Ajouter un destinataire</button>
@@ -179,21 +185,299 @@
                     <div class="next-send-info" id="nextSendInfo"></div>
                 </div>
 
-                <!-- Boutons d'action -->
+                <!-- NOUVEAU : Section informations GitHub Actions -->
+                <div class="github-actions-info" style="
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin: 20px 0;
+                ">
+                    <h5 style="color: #333; margin-bottom: 12px; font-size: 14px;">
+                        🤖 À propos de GitHub Actions
+                    </h5>
+                    <div style="font-size: 12px; color: #666; line-height: 1.4;">
+                        <p style="margin-bottom: 8px;">
+                            <strong>Envoi automatique :</strong> GitHub Actions exécute l'envoi d'emails automatiquement selon votre planification, même si cette page est fermée.
+                        </p>
+                        <p style="margin-bottom: 8px;">
+                            <strong>Synchronisation :</strong> La configuration est sauvegardée dans Firebase et synchronisée avec GitHub Actions.
+                        </p>
+                        <p style="margin-bottom: 0;">
+                            <strong>Logs :</strong> Tous les envois automatiques sont enregistrés et consultables ci-dessous.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Boutons d'action améliorés -->
                 <div class="email-buttons">
                     <button class="action-btn btn-email" onclick="sendManualEmail()">
                         📧 Envoyer maintenant
                     </button>
                     <button class="action-btn btn-email" onclick="setupAutoEmail()">
-                        ⏰ Activer envoi automatique
+                        ⏰ Configurer GitHub Actions
+                    </button>
+                    <button class="action-btn btn-refresh" onclick="refreshGitHubStatus()" 
+                            style="background: rgba(107, 114, 128, 0.15); color: #374151;">
+                        🔄 Actualiser statut
                     </button>
                     <button class="stop-scheduler" onclick="stopAutoEmail()" style="display: none;" id="stopButton">
                         Arrêter l'envoi automatique
                     </button>
                 </div>
+
+                <!-- NOUVEAU : Section logs d'envoi -->
+                <div id="emailLogs" style="
+                    margin-top: 20px;
+                    padding: 20px;
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    display: none;
+                    max-height: 300px;
+                    overflow-y: auto;
+                ">
+                    <h5>📊 Historique des envois automatiques</h5>
+                    <p style="color: #999; font-style: italic;">Chargement des logs...</p>
+                </div>
+
+                <!-- NOUVEAU : Section aide rapide -->
+                <div class="quick-help" style="
+                    background: rgba(59, 130, 246, 0.1);
+                    border: 1px solid rgba(59, 130, 246, 0.2);
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin: 20px 0;
+                    display: none;
+                " id="quickHelp">
+                    <h5 style="color: #1e40af; margin-bottom: 12px; font-size: 14px;">
+                        💡 Aide rapide
+                    </h5>
+                    <div style="font-size: 12px; color: #1e40af; line-height: 1.4;">
+                        <p style="margin-bottom: 8px;">
+                            <strong>1.</strong> Configurez vos destinataires et horaires ci-dessus
+                        </p>
+                        <p style="margin-bottom: 8px;">
+                            <strong>2.</strong> Cliquez sur "Configurer GitHub Actions"
+                        </p>
+                        <p style="margin-bottom: 8px;">
+                            <strong>3.</strong> Vérifiez que le statut passe à "GitHub Actions: Actif"
+                        </p>
+                        <p style="margin-bottom: 0;">
+                            <strong>4.</strong> Les emails seront envoyés automatiquement selon votre planification
+                        </p>
+                    </div>
+                    <button onclick="document.getElementById('quickHelp').style.display='none'" 
+                            style="
+                                background: none;
+                                border: none;
+                                color: #1e40af;
+                                font-size: 10px;
+                                margin-top: 8px;
+                                cursor: pointer;
+                                text-decoration: underline;
+                            ">
+                        Masquer cette aide
+                    </button>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- NOUVEAU : Styles CSS pour GitHub Actions -->
+    <style>
+        .github-status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            margin: 15px 0;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .github-status::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .github-status:hover::before {
+            width: 6px;
+        }
+
+        .github-status.active {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #047857;
+        }
+
+        .github-status.active::before {
+            background: linear-gradient(180deg, #10b981, #059669);
+        }
+
+        .github-status.warning {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #92400e;
+        }
+
+        .github-status.warning::before {
+            background: linear-gradient(180deg, #f59e0b, #d97706);
+        }
+
+        .github-status.inactive {
+            background: rgba(107, 114, 128, 0.15);
+            border: 1px solid rgba(107, 114, 128, 0.3);
+            color: #374151;
+        }
+
+        .github-status.inactive::before {
+            background: linear-gradient(180deg, #6b7280, #4b5563);
+        }
+
+        .github-actions-info {
+            animation: slideInFromLeft 0.5s ease-out;
+        }
+
+        .quick-help {
+            animation: slideInFromRight 0.6s ease-out;
+        }
+
+        @keyframes slideInFromLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInFromRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Style pour les logs d'envoi */
+        #emailLogs::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #emailLogs::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        #emailLogs::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        #emailLogs::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Animation pour l'apparition des logs */
+        .log-item {
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive pour GitHub Actions */
+        @media (max-width: 768px) {
+            .github-actions-info,
+            .quick-help {
+                padding: 12px;
+                font-size: 11px;
+            }
+            
+            .github-status {
+                padding: 10px 12px;
+                font-size: 12px;
+            }
+            
+            #emailLogs {
+                max-height: 200px;
+                padding: 15px;
+            }
+
+            .email-buttons {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+    </style>
+
+    <!-- NOUVEAU : Script pour afficher l'aide au premier chargement -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Afficher l'aide rapide si c'est la première visite
+            const hasSeenHelp = localStorage.getItem('github_actions_help_seen');
+            if (!hasSeenHelp) {
+                setTimeout(() => {
+                    const helpSection = document.getElementById('quickHelp');
+                    if (helpSection) {
+                        helpSection.style.display = 'block';
+                        localStorage.setItem('github_actions_help_seen', 'true');
+                    }
+                }, 3000); // Afficher après 3 secondes
+            }
+            
+            // Afficher les logs si l'envoi automatique est configuré
+            setTimeout(() => {
+                const config = JSON.parse(localStorage.getItem('autoEmailConfig') || '{}');
+                if (config.enabled) {
+                    const logsSection = document.getElementById('emailLogs');
+                    if (logsSection) {
+                        logsSection.style.display = 'block';
+                    }
+                }
+            }, 2000);
+        });
+
+        // NOUVEAU : Fonctions globales pour GitHub Actions
+        window.refreshGitHubStatus = function() {
+            // Cette fonction sera définie dans le service firebase_email_service.js
+            if (typeof window.checkGitHubActionsStatus === 'function') {
+                window.checkGitHubActionsStatus();
+                window.displayEmailLogs();
+                alert('✅ Statut GitHub Actions actualisé !');
+            } else {
+                console.log('Service GitHub Actions en cours de chargement...');
+            }
+        };
+
+        window.showEmailLogs = function() {
+            // Cette fonction sera définie dans le service firebase_email_service.js
+            if (typeof window.displayEmailLogs === 'function') {
+                window.displayEmailLogs();
+            }
+        };
+    </script>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
