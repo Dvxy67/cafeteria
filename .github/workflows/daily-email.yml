@@ -4,7 +4,7 @@ name: Envoi Email Cafeteria Automatique
 on:
   schedule:
     # Tous les jours à 15h10 CET/CEST (13h10 UTC)
-    - cron: '20 14 * * 1-5'  # Lundi à Vendredi uniquement
+    - cron: '10 13 * * 1-5'  # Lundi à Vendredi uniquement
   # Permet aussi de déclencher manuellement
   workflow_dispatch:
     inputs:
@@ -325,4 +325,3 @@ jobs:
         run: |
           rm -f email-service.js
           echo "🧹 Nettoyage terminé"
-
