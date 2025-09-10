@@ -4,7 +4,7 @@ name: Envoi Email Cafétéria Automatique
 on:
   schedule:
     # Tous les jours à 18h00 UTC (19h CET / 20h CEST)
-    - cron: '00 15 * * 1-5'  # Lundi à Vendredi uniquement
+    - cron: '10 13 * * 1-5'  # Lundi à Vendredi uniquement
   # Permet aussi de déclencher manuellement
   workflow_dispatch:
     inputs:
