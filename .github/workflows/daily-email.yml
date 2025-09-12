@@ -67,30 +67,63 @@ jobs:
               // 1. Récupérer la configuration email depuis Firebase
               const emailConfig = await getEmailConfig();
               
-              if (!emailConfig || !emailConfig.enabled) {
-                console.log('❌ Envoi automatique désactivé ou non configuré');
+              // ✅ CORRECTION: Vérification renforcée de la configuration
+              if (!emailConfig) {
+                console.log('❌ Aucune configuration email trouvée dans Firebase');
                 if (process.env.FORCE_SEND !== 'true') {
+                  console.log('💡 Utilisez force_send=true pour ignorer cette vérification');
                   return;
                 }
+                console.log('⚠️ FORCE_SEND activé - création d\'une configuration par défaut');
+              }
+
+              // Vérifier si l'envoi est activé
+              if (emailConfig && !emailConfig.enabled) {
+                console.log('❌ Envoi automatique désactivé dans la configuration');
+                if (process.env.FORCE_SEND !== 'true') {
+                  console.log('💡 Utilisez force_send=true pour ignorer cette vérification');
+                  return;
+                }
+                console.log('⚠️ FORCE_SEND activé - envoi forcé malgré la désactivation');
               }
 
               // 2. Vérifier si c'est un jour configuré pour l'envoi
               const today = new Date();
               const dayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
               
-              if (emailConfig && emailConfig.days && !emailConfig.days.includes(dayOfWeek)) {
+              if (emailConfig && emailConfig.days && emailConfig.days.length > 0 && !emailConfig.days.includes(dayOfWeek)) {
                 console.log(`❌ Aujourd'hui (${getDayName(dayOfWeek)}) n'est pas configuré pour l'envoi`);
-                return;
+                console.log(`📅 Jours configurés: ${emailConfig.days.map(d => getDayName(d)).join(', ')}`);
+                if (process.env.FORCE_SEND !== 'true') {
+                  return;
+                }
+                console.log('⚠️ FORCE_SEND activé - envoi forcé malgré la configuration des jours');
               }
 
               // 3. Récupérer les données de votes du jour
               const todayVotes = await getTodayVotes();
               
-              // 4. Récupérer les destinataires
-              const recipients = emailConfig.recipients || [];
+              // 4. ✅ CORRECTION: Vérification renforcée des destinataires
+              let recipients = [];
+              
+              if (emailConfig && emailConfig.recipients && Array.isArray(emailConfig.recipients)) {
+                recipients = emailConfig.recipients.filter(email => email && email.includes('@'));
+                console.log(`📧 ${recipients.length} destinataire(s) valide(s) trouvé(s)`);
+              }
               
               if (recipients.length === 0) {
-                console.log('❌ Aucun destinataire configuré');
+                console.log('❌ Aucun destinataire configuré ou valide');
+                console.log('💡 Vérifiez que la collection "email_config" existe dans Firebase');
+                console.log('💡 et qu\'elle contient un document "settings" avec un champ "recipients"');
+                
+                // En mode debug, afficher la structure de la config
+                if (emailConfig) {
+                  console.log('📋 Structure de la configuration actuelle:');
+                  console.log(JSON.stringify(emailConfig, null, 2));
+                } else {
+                  console.log('📋 Aucune configuration trouvée');
+                }
+                
                 return;
               }
 
@@ -101,17 +134,30 @@ jobs:
               
             } catch (error) {
               console.error('❌ Erreur lors de l\'envoi:', error);
+              console.error('📋 Stack trace:', error.stack);
               process.exit(1);
             }
           }
 
           async function getEmailConfig() {
             try {
+              console.log('🔍 Recherche de la configuration dans Firebase...');
               const configRef = db.collection('email_config').doc('settings');
               const configSnap = await configRef.get();
               
               if (!configSnap.exists) {
-                console.log('⚠️ Aucune configuration email trouvée dans Firebase');
+                console.log('⚠️ Document "settings" non trouvé dans la collection "email_config"');
+                console.log('💡 Créez un document avec cette structure:');
+                console.log(JSON.stringify({
+                  enabled: true,
+                  recipients: ["email@example.com"],
+                  days: [1, 2, 3, 4, 5], // Lundi à Vendredi
+                  emailConfig: {
+                    serviceId: "your_service_id",
+                    templateId: "your_template_id",
+                    publicKey: "your_public_key"
+                  }
+                }, null, 2));
                 return null;
               }
               
@@ -119,13 +165,15 @@ jobs:
               console.log('📧 Configuration email récupérée:', {
                 enabled: config.enabled,
                 recipients: config.recipients?.length || 0,
-                days: config.days
+                days: config.days?.length || 0,
+                hasEmailConfig: !!config.emailConfig
               });
               
               return config;
               
             } catch (error) {
-              console.error('Erreur récupération config:', error);
+              console.error('❌ Erreur récupération config:', error);
+              console.error('📋 Détails:', error.message);
               return null;
             }
           }
@@ -133,6 +181,8 @@ jobs:
           async function getTodayVotes() {
             try {
               const today = new Date().toISOString().split('T')[0];
+              console.log(`🗓️ Recherche des votes pour: ${today}`);
+              
               const votesRef = db.collection('votes').doc(today);
               const votesSnap = await votesRef.get();
               
@@ -152,7 +202,7 @@ jobs:
               return votes;
               
             } catch (error) {
-              console.error('Erreur récupération votes:', error);
+              console.error('❌ Erreur récupération votes:', error);
               return { oui: [], non: [] };
             }
           }
@@ -187,14 +237,30 @@ jobs:
             };
 
             console.log('📧 Préparation envoi vers', recipients.length, 'destinataire(s)');
+            console.log('📊 Données à envoyer:', templateData);
             
             let successCount = 0;
             let errorCount = 0;
 
+            // ✅ CORRECTION: Vérification des clés EmailJS
+            const publicKey = emailConfig?.emailConfig?.publicKey || process.env.EMAILJS_PUBLIC_KEY;
+            const privateKey = process.env.EMAILJS_PRIVATE_KEY;
+            const serviceId = emailConfig?.emailConfig?.serviceId || process.env.EMAILJS_SERVICE_ID;
+            const templateId = emailConfig?.emailConfig?.templateId || process.env.EMAILJS_TEMPLATE_ID;
+
+            if (!publicKey || !privateKey || !serviceId || !templateId) {
+              console.error('❌ Configuration EmailJS incomplète:');
+              console.error('- Public Key:', !!publicKey);
+              console.error('- Private Key:', !!privateKey);
+              console.error('- Service ID:', !!serviceId);
+              console.error('- Template ID:', !!templateId);
+              throw new Error('Configuration EmailJS manquante');
+            }
+
             // Initialiser EmailJS
             emailjs.init({
-              publicKey: emailConfig.emailConfig?.publicKey || process.env.EMAILJS_PUBLIC_KEY,
-              privateKey: process.env.EMAILJS_PRIVATE_KEY
+              publicKey: publicKey,
+              privateKey: privateKey
             });
 
             for (let i = 0; i < recipients.length; i++) {
@@ -210,11 +276,7 @@ jobs:
                   send_source: 'github_actions'
                 };
 
-                await emailjs.send(
-                  emailConfig.emailConfig?.serviceId || process.env.EMAILJS_SERVICE_ID,
-                  emailConfig.emailConfig?.templateId || process.env.EMAILJS_TEMPLATE_ID,
-                  uniqueTemplateData
-                );
+                await emailjs.send(serviceId, templateId, uniqueTemplateData);
 
                 console.log(`✅ Succès pour ${email}`);
                 successCount++;
@@ -225,7 +287,7 @@ jobs:
                 }
                 
               } catch (error) {
-                console.error(`❌ Erreur envoi pour ${email}:`, error);
+                console.error(`❌ Erreur envoi pour ${email}:`, error.message);
                 errorCount++;
               }
             }
@@ -238,9 +300,6 @@ jobs:
 
           async function getWeeklyAverage() {
             try {
-              const oneWeekAgo = new Date();
-              oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-              
               let totalVotes = 0;
               let days = 0;
               
