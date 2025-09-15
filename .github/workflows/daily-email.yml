@@ -1,4 +1,4 @@
-# .github/workflows/daily-email.yml
+# .github/workflows/daily-email.yml - VERSION CORRIGÉE
 name: Envoi Email Cafeteria Automatique
 
 on:
@@ -67,27 +67,54 @@ jobs:
               // 1. Récupérer la configuration email depuis Firebase
               const emailConfig = await getEmailConfig();
               
-              // ✅ CORRECTION: Vérification renforcée de la configuration
-              if (!emailConfig) {
-                console.log('❌ Aucune configuration email trouvée dans Firebase');
-                if (process.env.FORCE_SEND !== 'true') {
-                  console.log('💡 Utilisez force_send=true pour ignorer cette vérification');
+              // 2. Récupérer les données de votes du jour
+              const todayVotes = await getTodayVotes();
+              
+              // 3. Déterminer les destinataires et la configuration
+              let recipients = [];
+              let emailSettings = {
+                serviceId: process.env.EMAILJS_SERVICE_ID,
+                templateId: process.env.EMAILJS_TEMPLATE_ID,
+                publicKey: process.env.EMAILJS_PUBLIC_KEY,
+                privateKey: process.env.EMAILJS_PRIVATE_KEY
+              };
+              
+              // Priorité à la config Firebase si elle existe et est complète
+              if (emailConfig && emailConfig.enabled && emailConfig.recipients && emailConfig.recipients.length > 0) {
+                recipients = emailConfig.recipients.filter(email => email && email.includes('@'));
+                console.log(`📧 Utilisation config Firebase: ${recipients.length} destinataire(s)`);
+                
+                // Utiliser les clés EmailJS de Firebase si disponibles
+                if (emailConfig.emailConfig && emailConfig.emailConfig.serviceId) {
+                  emailSettings.serviceId = emailConfig.emailConfig.serviceId;
+                  emailSettings.templateId = emailConfig.emailConfig.templateId;
+                  emailSettings.publicKey = emailConfig.emailConfig.publicKey;
+                  console.log('🔧 Utilisation clés EmailJS depuis Firebase');
+                }
+              } else {
+                console.log('⚠️ Config Firebase incomplète ou désactivée');
+                
+                if (process.env.FORCE_SEND === 'true') {
+                  // Mode forcé : utiliser une config par défaut minimale
+                  recipients = ['admin@example.com']; // Remplacez par votre email
+                  console.log('🔨 Mode FORCE_SEND: utilisation config par défaut');
+                } else {
+                  console.log('❌ Pas de destinataires configurés et FORCE_SEND non activé');
                   return;
                 }
-                console.log('⚠️ FORCE_SEND activé - création d\'une configuration par défaut');
+              }
+              
+              // 4. Vérifier la configuration EmailJS
+              if (!emailSettings.serviceId || !emailSettings.templateId || !emailSettings.publicKey || !emailSettings.privateKey) {
+                console.error('❌ Configuration EmailJS incomplète:');
+                console.error('- Service ID:', !!emailSettings.serviceId);
+                console.error('- Template ID:', !!emailSettings.templateId);
+                console.error('- Public Key:', !!emailSettings.publicKey);
+                console.error('- Private Key:', !!emailSettings.privateKey);
+                throw new Error('Configuration EmailJS manquante');
               }
 
-              // Vérifier si l'envoi est activé
-              if (emailConfig && !emailConfig.enabled) {
-                console.log('❌ Envoi automatique désactivé dans la configuration');
-                if (process.env.FORCE_SEND !== 'true') {
-                  console.log('💡 Utilisez force_send=true pour ignorer cette vérification');
-                  return;
-                }
-                console.log('⚠️ FORCE_SEND activé - envoi forcé malgré la désactivation');
-              }
-
-              // 2. Vérifier si c'est un jour configuré pour l'envoi
+              // 5. Vérifier si c'est un jour configuré pour l'envoi
               const today = new Date();
               const dayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
               
@@ -100,35 +127,8 @@ jobs:
                 console.log('⚠️ FORCE_SEND activé - envoi forcé malgré la configuration des jours');
               }
 
-              // 3. Récupérer les données de votes du jour
-              const todayVotes = await getTodayVotes();
-              
-              // 4. ✅ CORRECTION: Vérification renforcée des destinataires
-              let recipients = [];
-              
-              if (emailConfig && emailConfig.recipients && Array.isArray(emailConfig.recipients)) {
-                recipients = emailConfig.recipients.filter(email => email && email.includes('@'));
-                console.log(`📧 ${recipients.length} destinataire(s) valide(s) trouvé(s)`);
-              }
-              
-              if (recipients.length === 0) {
-                console.log('❌ Aucun destinataire configuré ou valide');
-                console.log('💡 Vérifiez que la collection "email_config" existe dans Firebase');
-                console.log('💡 et qu\'elle contient un document "settings" avec un champ "recipients"');
-                
-                // En mode debug, afficher la structure de la config
-                if (emailConfig) {
-                  console.log('📋 Structure de la configuration actuelle:');
-                  console.log(JSON.stringify(emailConfig, null, 2));
-                } else {
-                  console.log('📋 Aucune configuration trouvée');
-                }
-                
-                return;
-              }
-
-              // 5. Envoyer les emails
-              await sendDailyReport(emailConfig, todayVotes, recipients);
+              // 6. Envoyer les emails
+              await sendDailyReport(emailSettings, todayVotes, recipients);
               
               console.log('✅ Envoi terminé avec succès');
               
@@ -147,17 +147,6 @@ jobs:
               
               if (!configSnap.exists) {
                 console.log('⚠️ Document "settings" non trouvé dans la collection "email_config"');
-                console.log('💡 Créez un document avec cette structure:');
-                console.log(JSON.stringify({
-                  enabled: true,
-                  recipients: ["email@example.com"],
-                  days: [1, 2, 3, 4, 5], // Lundi à Vendredi
-                  emailConfig: {
-                    serviceId: "your_service_id",
-                    templateId: "your_template_id",
-                    publicKey: "your_public_key"
-                  }
-                }, null, 2));
                 return null;
               }
               
@@ -173,7 +162,6 @@ jobs:
               
             } catch (error) {
               console.error('❌ Erreur récupération config:', error);
-              console.error('📋 Détails:', error.message);
               return null;
             }
           }
@@ -207,7 +195,7 @@ jobs:
             }
           }
 
-          async function sendDailyReport(emailConfig, votes, recipients) {
+          async function sendDailyReport(emailSettings, votes, recipients) {
             const oui = votes.oui || [];
             const non = votes.non || [];
             const total = oui.length + non.length;
@@ -242,25 +230,10 @@ jobs:
             let successCount = 0;
             let errorCount = 0;
 
-            // ✅ CORRECTION: Vérification des clés EmailJS
-            const publicKey = emailConfig?.emailConfig?.publicKey || process.env.EMAILJS_PUBLIC_KEY;
-            const privateKey = process.env.EMAILJS_PRIVATE_KEY;
-            const serviceId = emailConfig?.emailConfig?.serviceId || process.env.EMAILJS_SERVICE_ID;
-            const templateId = emailConfig?.emailConfig?.templateId || process.env.EMAILJS_TEMPLATE_ID;
-
-            if (!publicKey || !privateKey || !serviceId || !templateId) {
-              console.error('❌ Configuration EmailJS incomplète:');
-              console.error('- Public Key:', !!publicKey);
-              console.error('- Private Key:', !!privateKey);
-              console.error('- Service ID:', !!serviceId);
-              console.error('- Template ID:', !!templateId);
-              throw new Error('Configuration EmailJS manquante');
-            }
-
             // Initialiser EmailJS
             emailjs.init({
-              publicKey: publicKey,
-              privateKey: privateKey
+              publicKey: emailSettings.publicKey,
+              privateKey: emailSettings.privateKey
             });
 
             for (let i = 0; i < recipients.length; i++) {
@@ -276,7 +249,7 @@ jobs:
                   send_source: 'github_actions'
                 };
 
-                await emailjs.send(serviceId, templateId, uniqueTemplateData);
+                await emailjs.send(emailSettings.serviceId, emailSettings.templateId, uniqueTemplateData);
 
                 console.log(`✅ Succès pour ${email}`);
                 successCount++;
