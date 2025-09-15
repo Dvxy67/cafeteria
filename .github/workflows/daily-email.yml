@@ -1,4 +1,4 @@
-# .github/workflows/daily-email.yml - VERSION CORRIGÉE
+# .github/workflows/daily-email.yml - VERSION SIMPLIFIÉE ET AUTONOME
 name: Envoi Email Cafeteria Automatique
 
 on:
@@ -62,73 +62,42 @@ jobs:
 
           async function main() {
             try {
-              console.log('🚀 Démarrage du service d\'envoi d\'emails...');
+              console.log('🚀 Démarrage du service d\'envoi d\'emails automatique...');
               
-              // 1. Récupérer la configuration email depuis Firebase
-              const emailConfig = await getEmailConfig();
+              // 1. Récupérer les destinataires depuis Firebase
+              const recipients = await getEmailRecipients();
               
-              // 2. Récupérer les données de votes du jour
-              const todayVotes = await getTodayVotes();
-              
-              // 3. Déterminer les destinataires et la configuration
-              let recipients = [];
-              let emailSettings = {
-                serviceId: process.env.EMAILJS_SERVICE_ID,
-                templateId: process.env.EMAILJS_TEMPLATE_ID,
-                publicKey: process.env.EMAILJS_PUBLIC_KEY,
-                privateKey: process.env.EMAILJS_PRIVATE_KEY
-              };
-              
-              // Priorité à la config Firebase si elle existe et est complète
-              if (emailConfig && emailConfig.enabled && emailConfig.recipients && emailConfig.recipients.length > 0) {
-                recipients = emailConfig.recipients.filter(email => email && email.includes('@'));
-                console.log(`📧 Utilisation config Firebase: ${recipients.length} destinataire(s)`);
-                
-                // Utiliser les clés EmailJS de Firebase si disponibles
-                if (emailConfig.emailConfig && emailConfig.emailConfig.serviceId) {
-                  emailSettings.serviceId = emailConfig.emailConfig.serviceId;
-                  emailSettings.templateId = emailConfig.emailConfig.templateId;
-                  emailSettings.publicKey = emailConfig.emailConfig.publicKey;
-                  console.log('🔧 Utilisation clés EmailJS depuis Firebase');
-                }
-              } else {
-                console.log('⚠️ Config Firebase incomplète ou désactivée');
-                
-                if (process.env.FORCE_SEND === 'true') {
-                  // Mode forcé : utiliser une config par défaut minimale
-                  recipients = ['admin@example.com']; // Remplacez par votre email
-                  console.log('🔨 Mode FORCE_SEND: utilisation config par défaut');
-                } else {
-                  console.log('❌ Pas de destinataires configurés et FORCE_SEND non activé');
-                  return;
-                }
+              if (!recipients || recipients.length === 0) {
+                console.log('❌ Aucun destinataire trouvé dans Firebase');
+                console.log('💡 Créez un document dans la collection "email_recipients"');
+                return;
               }
               
-              // 4. Vérifier la configuration EmailJS
-              if (!emailSettings.serviceId || !emailSettings.templateId || !emailSettings.publicKey || !emailSettings.privateKey) {
-                console.error('❌ Configuration EmailJS incomplète:');
-                console.error('- Service ID:', !!emailSettings.serviceId);
-                console.error('- Template ID:', !!emailSettings.templateId);
-                console.error('- Public Key:', !!emailSettings.publicKey);
-                console.error('- Private Key:', !!emailSettings.privateKey);
-                throw new Error('Configuration EmailJS manquante');
-              }
+              console.log(`📧 ${recipients.length} destinataire(s) trouvé(s):`, recipients);
 
-              // 5. Vérifier si c'est un jour configuré pour l'envoi
+              // 2. Récupérer les votes du jour
+              const todayVotes = await getTodayVotes();
+              console.log('📊 Votes récupérés:', {
+                oui: todayVotes.oui?.length || 0,
+                non: todayVotes.non?.length || 0,
+                total: (todayVotes.oui?.length || 0) + (todayVotes.non?.length || 0)
+              });
+
+              // 3. Vérifier si on doit envoyer (jour de la semaine)
               const today = new Date();
               const dayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
               
-              if (emailConfig && emailConfig.days && emailConfig.days.length > 0 && !emailConfig.days.includes(dayOfWeek)) {
-                console.log(`❌ Aujourd'hui (${getDayName(dayOfWeek)}) n'est pas configuré pour l'envoi`);
-                console.log(`📅 Jours configurés: ${emailConfig.days.map(d => getDayName(d)).join(', ')}`);
+              // Envoyer seulement du lundi au vendredi (1-5)
+              if (dayOfWeek < 1 || dayOfWeek > 5) {
+                console.log(`❌ Pas d'envoi le ${getDayName(dayOfWeek)}`);
                 if (process.env.FORCE_SEND !== 'true') {
                   return;
                 }
-                console.log('⚠️ FORCE_SEND activé - envoi forcé malgré la configuration des jours');
+                console.log('⚠️ FORCE_SEND activé - envoi forcé');
               }
 
-              // 6. Envoyer les emails
-              await sendDailyReport(emailSettings, todayVotes, recipients);
+              // 4. Envoyer les emails
+              await sendDailyReport(todayVotes, recipients);
               
               console.log('✅ Envoi terminé avec succès');
               
@@ -139,30 +108,40 @@ jobs:
             }
           }
 
-          async function getEmailConfig() {
+          // NOUVELLE FONCTION : Récupérer les destinataires depuis Firebase
+          async function getEmailRecipients() {
             try {
-              console.log('🔍 Recherche de la configuration dans Firebase...');
+              console.log('🔍 Recherche des destinataires dans Firebase...');
+              
+              // Option 1: Depuis un document dédié (recommandé)
+              const recipientsRef = db.collection('email_recipients').doc('settings');
+              const recipientsSnap = await recipientsRef.get();
+              
+              if (recipientsSnap.exists()) {
+                const data = recipientsSnap.data();
+                console.log('📧 Document email_recipients trouvé');
+                return data.emails || [];
+              }
+              
+              // Option 2: Fallback - Chercher dans email_config si existe
+              console.log('🔄 Tentative de récupération depuis email_config...');
               const configRef = db.collection('email_config').doc('settings');
               const configSnap = await configRef.get();
               
-              if (!configSnap.exists) {
-                console.log('⚠️ Document "settings" non trouvé dans la collection "email_config"');
-                return null;
+              if (configSnap.exists()) {
+                const config = configSnap.data();
+                if (config.recipients && config.recipients.length > 0) {
+                  console.log('📧 Destinataires trouvés dans email_config');
+                  return config.recipients;
+                }
               }
               
-              const config = configSnap.data();
-              console.log('📧 Configuration email récupérée:', {
-                enabled: config.enabled,
-                recipients: config.recipients?.length || 0,
-                days: config.days?.length || 0,
-                hasEmailConfig: !!config.emailConfig
-              });
-              
-              return config;
+              console.log('❌ Aucune configuration de destinataires trouvée');
+              return [];
               
             } catch (error) {
-              console.error('❌ Erreur récupération config:', error);
-              return null;
+              console.error('❌ Erreur récupération destinataires:', error);
+              return [];
             }
           }
 
@@ -182,11 +161,6 @@ jobs:
               const votesData = votesSnap.data();
               const votes = votesData.votes || {};
               
-              console.log('📊 Votes récupérés:', {
-                oui: votes.oui?.length || 0,
-                non: votes.non?.length || 0
-              });
-              
               return votes;
               
             } catch (error) {
@@ -195,7 +169,7 @@ jobs:
             }
           }
 
-          async function sendDailyReport(emailSettings, votes, recipients) {
+          async function sendDailyReport(votes, recipients) {
             const oui = votes.oui || [];
             const non = votes.non || [];
             const total = oui.length + non.length;
@@ -204,7 +178,7 @@ jobs:
             const ouiPercent = total > 0 ? Math.round((oui.length / total) * 100) : 0;
             const nonPercent = total > 0 ? Math.round((non.length / total) * 100) : 0;
 
-            // Données communes pour le template
+            // Données pour le template EmailJS
             const templateData = {
               date_fr: new Date().toLocaleDateString('fr-FR', { 
                 weekday: 'long', 
@@ -221,21 +195,24 @@ jobs:
               total_count: total,
               oui_percent: ouiPercent,
               non_percent: nonPercent,
-              average_week: await getWeeklyAverage()
+              average_week: await getWeeklyAverage(),
+              // Ajouter la liste des participants
+              participants_oui: oui.map(vote => vote.name).join(', ') || 'Aucun',
+              participants_non: non.map(vote => vote.name).join(', ') || 'Aucun'
             };
 
-            console.log('📧 Préparation envoi vers', recipients.length, 'destinataire(s)');
-            console.log('📊 Données à envoyer:', templateData);
+            console.log('📧 Données à envoyer:', templateData);
             
             let successCount = 0;
             let errorCount = 0;
 
-            // Initialiser EmailJS
+            // Initialiser EmailJS avec les clés des secrets GitHub
             emailjs.init({
-              publicKey: emailSettings.publicKey,
-              privateKey: emailSettings.privateKey
+              publicKey: process.env.EMAILJS_PUBLIC_KEY,
+              privateKey: process.env.EMAILJS_PRIVATE_KEY
             });
 
+            // Envoyer à chaque destinataire
             for (let i = 0; i < recipients.length; i++) {
               const email = recipients[i];
               
@@ -249,12 +226,16 @@ jobs:
                   send_source: 'github_actions'
                 };
 
-                await emailjs.send(emailSettings.serviceId, emailSettings.templateId, uniqueTemplateData);
+                await emailjs.send(
+                  process.env.EMAILJS_SERVICE_ID,
+                  process.env.EMAILJS_TEMPLATE_ID,
+                  uniqueTemplateData
+                );
 
                 console.log(`✅ Succès pour ${email}`);
                 successCount++;
                 
-                // Attendre entre les envois pour éviter le rate limiting
+                // Attendre entre les envois
                 if (i < recipients.length - 1) {
                   await new Promise(resolve => setTimeout(resolve, 2000));
                 }
@@ -265,7 +246,7 @@ jobs:
               }
             }
 
-            // Enregistrer le résultat de l'envoi
+            // Enregistrer le log d'envoi
             await saveEmailLog(successCount, errorCount, total);
             
             console.log(`📊 Résultat final: ${successCount} succès, ${errorCount} erreurs`);
@@ -333,7 +314,7 @@ jobs:
 
       - name: Send daily email
         env:
-          # Firebase Service Account
+          # Firebase Service Account (obligatoire)
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_PRIVATE_KEY_ID: ${{ secrets.FIREBASE_PRIVATE_KEY_ID }}
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
@@ -341,7 +322,7 @@ jobs:
           FIREBASE_CLIENT_ID: ${{ secrets.FIREBASE_CLIENT_ID }}
           FIREBASE_CLIENT_CERT_URL: ${{ secrets.FIREBASE_CLIENT_CERT_URL }}
           
-          # EmailJS
+          # EmailJS (obligatoire)
           EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
           EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
           EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
