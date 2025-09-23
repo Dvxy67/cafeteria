@@ -1,14 +1,21 @@
 // dashboard.js - Version complète avec toutes les fonctions email
 
-import { 
-    FIREBASE_CONFIG, 
-    EMAIL_CONFIG, 
-    APP_CONFIG, 
-    DOM_ELEMENTS, 
-    MESSAGES, 
-    UTILS, 
-    appState 
+import {
+    FIREBASE_CONFIG,
+    EMAIL_CONFIG,
+    APP_CONFIG,
+    DOM_ELEMENTS,
+    MESSAGES,
+    UTILS,
+    appState
 } from './config.js';
+
+import {
+    saveEmailConfigToFirebase,
+    loadEmailConfigFromFirebase,
+    checkGitHubActionsStatus,
+    displayEmailLogs
+} from './firebase_email_service.js';
 
 // Import des modules Firebase
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
@@ -155,7 +162,7 @@ async function login() {
         // Initialiser le dashboard
         checkEmailConfig();
         await loadAllData();
-        loadEmailConfig();
+        await loadEmailConfig();
         updateSchedulerStatus();
         updateNextSendInfo();
         startEmailScheduler();
@@ -736,29 +743,41 @@ function updateSchedulerStatus() {
     }
 }
 
-function loadEmailConfig() {
+async function loadEmailConfig() {
     console.log('📂 Chargement configuration email');
-    
-    const config = JSON.parse(localStorage.getItem('autoEmailConfig') || '{}');
+
+    let config = {};
+
+    try {
+        config = await loadEmailConfigFromFirebase();
+    } catch (error) {
+        console.error('❌ Erreur chargement configuration Firebase:', error);
+        config = JSON.parse(localStorage.getItem('autoEmailConfig') || '{}');
+    }
+
+    if (!config || typeof config !== 'object') {
+        config = {};
+    }
+
     const recipientsList = document.getElementById(DOM_ELEMENTS.RECIPIENTS_LIST);
-    
+
     if (!recipientsList) {
         console.error('❌ Liste des destinataires non trouvée');
         return;
     }
-    
+
     recipientsList.innerHTML = '';
-    
-    if (config.recipients && config.recipients.length > 0) {
+
+    if (Array.isArray(config.recipients) && config.recipients.length > 0) {
         console.log(`Ajout de ${config.recipients.length} destinataires sauvegardés`);
-        
-        config.recipients.forEach((email, index) => {
+
+        config.recipients.forEach((email) => {
             const recipientDiv = document.createElement('div');
             recipientDiv.className = 'recipient-input';
             recipientDiv.innerHTML = `
-                <input type="email" 
-                       placeholder="Email destinataire" 
-                       class="recipient-email" 
+                <input type="email"
+                       placeholder="Email destinataire"
+                       class="recipient-email"
                        value="${email}">
                 <button class="remove-recipient" onclick="removeRecipient(this)">Supprimer</button>
             `;
@@ -767,17 +786,17 @@ function loadEmailConfig() {
     } else {
         addRecipient();
     }
-    
+
     updateRemoveButtons();
-    
+
     // Charger l'heure configurée
     const emailTimeInput = document.getElementById(DOM_ELEMENTS.EMAIL_TIME);
     if (config.time && emailTimeInput) {
         emailTimeInput.value = config.time;
     }
-    
+
     // Charger les jours configurés
-    if (config.days) {
+    if (Array.isArray(config.days)) {
         const select = document.getElementById(DOM_ELEMENTS.EMAIL_DAYS);
         if (select) {
             Array.from(select.options).forEach(option => {
@@ -785,6 +804,9 @@ function loadEmailConfig() {
             });
         }
     }
+
+    await checkGitHubActionsStatus();
+    await displayEmailLogs();
 }
 
 /**
@@ -1006,9 +1028,9 @@ function sendManualEmail() {
     }
 }
 
-function setupAutoEmail() {
+async function setupAutoEmail() {
     console.log('⏰ Configuration envoi automatique');
-    
+
     const recipients = getRecipients();
     const time = document.getElementById(DOM_ELEMENTS.EMAIL_TIME)?.value || '18:00';
     const days = getSelectedDays();
@@ -1042,17 +1064,28 @@ function setupAutoEmail() {
         days: days,
         enabled: true
     };
-    
-    localStorage.setItem('autoEmailConfig', JSON.stringify(config));
-    
+
+    let savedToFirebase = false;
+
+    try {
+        savedToFirebase = await saveEmailConfigToFirebase(config);
+    } catch (error) {
+        console.error('❌ Impossible de sauvegarder la configuration dans Firebase:', error);
+        localStorage.setItem('autoEmailConfig', JSON.stringify(config));
+    }
+
     const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     const selectedDayNames = days.map(day => dayNames[day]).join(', ');
-    
-    alert(`✅ Configuration sauvée !\n\nDestinaires: ${uniqueRecipients.join(', ')}\nHeure: ${time}\nJours: ${selectedDayNames}\n\nL'envoi automatique est maintenant activé.`);
-    
+
+    if (savedToFirebase) {
+        alert(`✅ Configuration sauvée !\n\nDestinaires: ${uniqueRecipients.join(', ')}\nHeure: ${time}\nJours: ${selectedDayNames}\n\nL'envoi automatique est maintenant activé.`);
+    } else {
+        alert(`⚠️ Configuration sauvegardée localement.\n\nDestinaires: ${uniqueRecipients.join(', ')}\nHeure: ${time}\nJours: ${selectedDayNames}\n\nLa connexion à Firebase doit être vérifiée.`);
+    }
+
     updateSchedulerStatus();
     updateNextSendInfo();
-    loadEmailConfig();
+    await loadEmailConfig();
     startEmailScheduler();
 }
 
