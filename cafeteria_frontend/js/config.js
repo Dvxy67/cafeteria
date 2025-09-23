@@ -12,8 +12,8 @@ export const firebaseConfig = {
 
 // Configuration de l'application
 export const CONFIG = {
-    CLOSING_HOUR: 19,
-    CLOSING_MINUTE: 0,
+    CLOSING_HOUR: 10,
+    CLOSING_MINUTE: 30,
     IMAGE_URL: "https://res.cloudinary.com/dvtv7bku4/image/upload/v1732203557/cafeteria-menus/menu_placeholder.jpg"
 };
 
