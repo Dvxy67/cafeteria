@@ -296,7 +296,7 @@ export async function checkGitHubActionsStatus() {
         if (config.enabled && config.githubActionsEnabled) {
             statusDiv.className = 'github-status active';
             statusDiv.innerHTML = `
-                <span>🤖 GitHub Actions: Actif</span>
+                <span>🤖 Robot: Actif</span>
                 <div style="font-size: 11px; color: #666; margin-top: 5px;">
                     Envoi automatique configuré pour ${config.time} 
                     les ${getDaysNames(config.days || [])}
@@ -305,7 +305,7 @@ export async function checkGitHubActionsStatus() {
         } else if (config.enabled) {
             statusDiv.className = 'github-status warning';
             statusDiv.innerHTML = `
-                <span>⚠️ GitHub Actions: Configuration locale uniquement</span>
+                <span>⚠️ Robot: Configuration locale uniquement</span>
                 <div style="font-size: 11px; color: #666; margin-top: 5px;">
                     Reconfigurer pour activer l'envoi automatique
                 </div>
@@ -313,7 +313,7 @@ export async function checkGitHubActionsStatus() {
         } else {
             statusDiv.className = 'github-status inactive';
             statusDiv.innerHTML = `
-                <span>🔴 GitHub Actions: Inactif</span>
+                <span>🔴 Robot: Inactif</span>
                 <div style="font-size: 11px; color: #666; margin-top: 5px;">
                     Configurer l'envoi automatique pour activer
                 </div>

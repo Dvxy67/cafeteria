@@ -137,11 +137,11 @@
 
             <!-- Configuration email améliorée avec GitHub Actions -->
             <div class="email-config" id="emailConfig">
-                <h4>📧 Configuration d'envoi automatique avec GitHub Actions</h4>
+                <h4>📧 Configuration d'envoi automatique</h4>
 
                 <!-- NOUVEAU : Status GitHub Actions -->
                 <div id="githubActionsStatus" class="github-status inactive">
-                    <span>🔴 GitHub Actions: Vérification...</span>
+                    <span>🔴 Robots: Vérification...</span>
                     <div style="font-size: 11px; color: #666; margin-top: 5px;">
                         Initialisation en cours...
                     </div>
@@ -193,20 +193,7 @@
                     padding: 16px;
                     margin: 20px 0;
                 ">
-                    <h5 style="color: #333; margin-bottom: 12px; font-size: 14px;">
-                        🤖 À propos de GitHub Actions
-                    </h5>
-                    <div style="font-size: 12px; color: #666; line-height: 1.4;">
-                        <p style="margin-bottom: 8px;">
-                            <strong>Envoi automatique :</strong> GitHub Actions exécute l'envoi d'emails automatiquement selon votre planification, même si cette page est fermée.
-                        </p>
-                        <p style="margin-bottom: 8px;">
-                            <strong>Synchronisation :</strong> La configuration est sauvegardée dans Firebase et synchronisée avec GitHub Actions.
-                        </p>
-                        <p style="margin-bottom: 0;">
-                            <strong>Logs :</strong> Tous les envois automatiques sont enregistrés et consultables ci-dessous.
-                        </p>
-                    </div>
+
                 </div>
 
                 <!-- Boutons d'action améliorés -->
@@ -215,7 +202,7 @@
                         📧 Envoyer maintenant
                     </button>
                     <button class="action-btn btn-email" onclick="setupAutoEmail()">
-                        ⏰ Configurer GitHub Actions
+                        ⏰ Configurer l'envoie automatique
                     </button>
                     <button class="action-btn btn-refresh" onclick="refreshGitHubStatus()" 
                             style="background: rgba(107, 114, 128, 0.15); color: #374151;">

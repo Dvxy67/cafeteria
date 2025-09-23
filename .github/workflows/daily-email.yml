@@ -1,15 +1,15 @@
-# .github/workflows/daily-email.yml - VERSION CORRIGÉE FIREBASE ADMIN
+# .github/workflows/daily-email.yml - VERSION DYNAMIQUE AVEC FIREBASE
 name: Envoi Email Cafeteria Automatique
 
 on:
   schedule:
-    # Tous les jours à 15h10 CET/CEST (13h10 UTC)
-    - cron: '10 13 * * 1-5'  # Lundi à Vendredi uniquement
+    # S'exécute toutes les 30 minutes de 9h à 14h, du lundi au vendredi
+    - cron: '0,30 7-12 * * 1-5'  # 9h00, 9h30, 10h00... 14h00, 14h30 CET (7h-12h UTC)
   # Permet aussi de déclencher manuellement
   workflow_dispatch:
     inputs:
       force_send:
-        description: 'Forcer envoi meme si pas configure'
+        description: 'Mode test - Force envoi même si déjà envoyé aujourd'
         required: false
         default: false
         type: boolean
@@ -32,7 +32,7 @@ jobs:
           npm init -y
           npm install @emailjs/nodejs firebase-admin
 
-      - name: Create email service
+      - name: Create dynamic email service
         run: |
           cat > email-service.js << 'EOF'
           const emailjs = require('@emailjs/nodejs');
@@ -46,7 +46,7 @@ jobs:
             private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
             client_email: process.env.FIREBASE_CLIENT_EMAIL,
             client_id: process.env.FIREBASE_CLIENT_ID,
-            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            auth_uri: "https://accounts.google.com/oauth2/auth",
             token_uri: "https://oauth2.googleapis.com/token",
             auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
             client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
@@ -62,20 +62,43 @@ jobs:
 
           async function main() {
             try {
-              console.log('🚀 Démarrage du service d\'envoi d\'emails automatique...');
+              console.log('🚀 Vérification de l\'heure d\'envoi automatique...');
               
-              // 1. Récupérer les destinataires depuis Firebase
-              const recipients = await getEmailRecipients();
+              // 1. Récupérer la configuration d'envoi depuis Firebase
+              const emailConfig = await getEmailConfig();
               
-              if (!recipients || recipients.length === 0) {
-                console.log('❌ Aucun destinataire trouvé dans Firebase');
-                console.log('💡 Vérifiez votre configuration Firebase');
+              if (!emailConfig || !emailConfig.enabled) {
+                console.log('❌ Envoi automatique désactivé ou non configuré');
                 return;
               }
               
-              console.log(`📧 ${recipients.length} destinataire(s) trouvé(s):`, recipients);
-
-              // 2. Récupérer les votes du jour
+              // 2. Vérifier si c'est le bon moment pour envoyer
+              const shouldSend = await shouldSendNow(emailConfig);
+              
+              if (!shouldSend) {
+                console.log('⏰ Pas encore l\'heure d\'envoyer - configuration:', {
+                  heure_configuree: emailConfig.time,
+                  jours_configurés: emailConfig.days,
+                  heure_actuelle: new Date().toLocaleTimeString('fr-FR'),
+                  jour_actuel: new Date().getDay()
+                });
+                return;
+              }
+              
+              console.log('✅ C\'est l\'heure d\'envoyer ! Configuration:', {
+                heure: emailConfig.time,
+                destinataires: emailConfig.recipients?.length || 0
+              });
+              
+              // 3. Récupérer les destinataires
+              const recipients = emailConfig.recipients || [];
+              
+              if (!recipients || recipients.length === 0) {
+                console.log('❌ Aucun destinataire configuré');
+                return;
+              }
+              
+              // 4. Récupérer les votes du jour
               const todayVotes = await getTodayVotes();
               console.log('📊 Votes récupérés:', {
                 oui: todayVotes.oui?.length || 0,
@@ -83,21 +106,8 @@ jobs:
                 total: (todayVotes.oui?.length || 0) + (todayVotes.non?.length || 0)
               });
 
-              // 3. Vérifier si on doit envoyer (jour de la semaine)
-              const today = new Date();
-              const dayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, etc.
-              
-              // Envoyer seulement du lundi au vendredi (1-5)
-              if (dayOfWeek < 1 || dayOfWeek > 5) {
-                console.log(`❌ Pas d'envoi le ${getDayName(dayOfWeek)}`);
-                if (process.env.FORCE_SEND !== 'true') {
-                  return;
-                }
-                console.log('⚠️ FORCE_SEND activé - envoi forcé');
-              }
-
-              // 4. Envoyer les emails
-              await sendDailyReport(todayVotes, recipients);
+              // 5. Envoyer les emails
+              await sendDailyReport(todayVotes, recipients, emailConfig);
               
               console.log('✅ Envoi terminé avec succès');
               
@@ -108,51 +118,121 @@ jobs:
             }
           }
 
-          // FONCTION CORRIGÉE : Récupérer les destinataires avec Firebase Admin
-          async function getEmailRecipients() {
+          // NOUVELLE FONCTION : Récupérer la configuration email depuis Firebase
+          async function getEmailConfig() {
             try {
-              console.log('🔍 Recherche des destinataires dans Firebase...');
+              console.log('📂 Chargement configuration email depuis Firebase...');
               
-              // Option 1: Depuis email_recipients/settings
-              const recipientsRef = db.collection('email_recipients').doc('settings');
-              const recipientsSnap = await recipientsRef.get();
-              
-              console.log('🔍 Document email_recipients existe:', recipientsSnap.exists);
-              
-              if (recipientsSnap.exists) {
-                const data = recipientsSnap.data();
-                console.log('📧 Données récupérées:', data);
-                
-                if (data && data.emails && Array.isArray(data.emails)) {
-                  console.log('✅ Emails trouvés dans email_recipients');
-                  return data.emails.filter(email => email && email.includes('@'));
-                }
-              }
-              
-              // Option 2: Fallback - Chercher dans email_config si existe
-              console.log('🔄 Tentative de récupération depuis email_config...');
+              // Essayer d'abord email_config (nouveau système)
               const configRef = db.collection('email_config').doc('settings');
               const configSnap = await configRef.get();
               
-              console.log('🔍 Document email_config existe:', configSnap.exists);
-              
               if (configSnap.exists) {
                 const config = configSnap.data();
-                console.log('📧 Config récupérée:', config);
-                
-                if (config && config.recipients && Array.isArray(config.recipients)) {
-                  console.log('✅ Destinataires trouvés dans email_config');
-                  return config.recipients.filter(email => email && email.includes('@'));
-                }
+                console.log('✅ Configuration trouvée dans email_config');
+                return {
+                  recipients: config.recipients || [],
+                  time: config.time || '15:10',
+                  days: config.days || [1,2,3,4,5],
+                  enabled: config.enabled || false,
+                  emailConfig: config.emailConfig || {}
+                };
               }
               
-              console.log('❌ Aucune configuration de destinataires trouvée');
-              return [];
+              // Fallback vers email_recipients (ancien système)
+              const recipientsRef = db.collection('email_recipients').doc('settings');
+              const recipientsSnap = await recipientsRef.get();
+              
+              if (recipientsSnap.exists) {
+                const data = recipientsSnap.data();
+                console.log('✅ Configuration trouvée dans email_recipients (fallback)');
+                return {
+                  recipients: data.emails || [],
+                  time: '15:10', // Heure par défaut pour ancien système
+                  days: [1,2,3,4,5], // Jours par défaut
+                  enabled: true,
+                  emailConfig: {}
+                };
+              }
+              
+              console.log('❌ Aucune configuration email trouvée');
+              return null;
               
             } catch (error) {
-              console.error('❌ Erreur récupération destinataires:', error);
-              console.error('📋 Détails erreur:', error.message);
-              return [];
+              console.error('❌ Erreur récupération configuration:', error);
+              return null;
+            }
+          }
+
+          // NOUVELLE FONCTION : Vérifier si c'est le bon moment d'envoyer
+          async function shouldSendNow(config) {
+            try {
+              const now = new Date();
+              const forceMode = process.env.FORCE_SEND === 'true';
+              
+              // Mode forcé pour les tests
+              if (forceMode) {
+                console.log('🚀 MODE FORCÉ ACTIVÉ - Ignore toutes les vérifications');
+                return true;
+              }
+              
+              // Convertir en heure de Paris (CET/CEST)
+              const parisTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/Paris"}));
+              const currentHour = parisTime.getHours();
+              const currentMinute = parisTime.getMinutes();
+              const currentDay = parisTime.getDay(); // 0=Dimanche, 1=Lundi, etc.
+              
+              // Vérifier le jour de la semaine
+              if (!config.days.includes(currentDay)) {
+                console.log(`📅 Pas d'envoi le ${getDayName(currentDay)}`);
+                return false;
+              }
+              
+              // Parser l'heure configurée (format "HH:MM")
+              const [configHour, configMinute] = config.time.split(':').map(Number);
+              
+              // Vérification logique : 
+              // X:00 à X:29 → Envoi à X:00
+              // X:30 à X:59 → Envoi à X:30
+              let shouldSendNow = false;
+              
+              if (configMinute < 30) {
+                // Config entre X:00 et X:29 → Envoi à X:00
+                shouldSendNow = (currentHour === configHour && currentMinute === 0);
+              } else {
+                // Config entre X:30 et X:59 → Envoi à X:30
+                shouldSendNow = (currentHour === configHour && currentMinute === 30);
+              }
+              
+              console.log(`⏰ Vérification horaire corrigée:`, {
+                heure_config: `${configHour}:${String(configMinute).padStart(2, '0')}`,
+                heure_actuelle: `${currentHour}:${String(currentMinute).padStart(2, '0')}`,
+                execution_prevue: configMinute < 30 ? 
+                  `${configHour}:00` : `${configHour}:30`,
+                doit_envoyer: shouldSendNow,
+                jour_config: config.days.map(getDayName).join(', '),
+                jour_actuel: getDayName(currentDay)
+              });
+              
+              if (!shouldSendNow) {
+                return false;
+              }
+              
+              // Vérifier si on a déjà envoyé aujourd'hui
+              const today = parisTime.toISOString().split('T')[0];
+              const lastSentRef = db.collection('email_logs').doc(today);
+              const lastSentSnap = await lastSentRef.get();
+              
+              if (lastSentSnap.exists) {
+                console.log('📧 Email déjà envoyé aujourd\'hui - utilisez le mode forcé pour tester');
+                return false;
+              }
+              
+              return true;
+              
+            } catch (error) {
+              console.error('❌ Erreur vérification horaire:', error);
+              return false;
             }
           }
 
@@ -164,18 +244,13 @@ jobs:
               const votesRef = db.collection('votes').doc(today);
               const votesSnap = await votesRef.get();
               
-              console.log('🔍 Document votes existe:', votesSnap.exists);
-              
               if (!votesSnap.exists) {
                 console.log('📊 Aucun vote pour aujourd\'hui');
                 return { oui: [], non: [] };
               }
               
               const votesData = votesSnap.data();
-              console.log('📊 Données votes brutes:', votesData);
-              
               const votes = votesData.votes || {};
-              console.log('📊 Votes finaux:', votes);
               
               return votes;
               
@@ -185,7 +260,7 @@ jobs:
             }
           }
 
-          async function sendDailyReport(votes, recipients) {
+          async function sendDailyReport(votes, recipients, config) {
             const oui = votes.oui || [];
             const non = votes.non || [];
             const total = oui.length + non.length;
@@ -212,18 +287,15 @@ jobs:
               oui_percent: ouiPercent,
               non_percent: nonPercent,
               average_week: await getWeeklyAverage(),
-              // Ajouter la liste des participants
               participants_oui: oui.map(vote => vote.name).join(', ') || 'Aucun',
               participants_non: non.map(vote => vote.name).join(', ') || 'Aucun'
             };
 
-            console.log('📧 Données à envoyer:', templateData);
-            
-            // Vérifier la configuration EmailJS
+            // Configuration EmailJS depuis Firebase ou variables d'environnement
             const emailConfig = {
-              serviceId: process.env.EMAILJS_SERVICE_ID,
-              templateId: process.env.EMAILJS_TEMPLATE_ID,
-              publicKey: process.env.EMAILJS_PUBLIC_KEY,
+              serviceId: config.emailConfig?.serviceId || process.env.EMAILJS_SERVICE_ID,
+              templateId: config.emailConfig?.templateId || process.env.EMAILJS_TEMPLATE_ID,
+              publicKey: config.emailConfig?.publicKey || process.env.EMAILJS_PUBLIC_KEY,
               privateKey: process.env.EMAILJS_PRIVATE_KEY
             };
             
@@ -258,11 +330,9 @@ jobs:
                 const uniqueTemplateData = {
                   ...templateData,
                   to_email: email,
-                  unique_send_id: `github_${Date.now()}_${i}`,
-                  send_source: 'github_actions'
+                  unique_send_id: `dynamic_${Date.now()}_${i}`,
+                  send_source: 'github_actions_dynamic'
                 };
-
-                console.log(`📤 Données envoyées pour ${email}:`, uniqueTemplateData);
 
                 const response = await emailjs.send(
                   emailConfig.serviceId,
@@ -281,7 +351,6 @@ jobs:
                 
               } catch (error) {
                 console.error(`❌ Erreur envoi pour ${email}:`, error);
-                console.error(`📋 Détails erreur:`, error.message);
                 errorCount++;
               }
             }
@@ -333,7 +402,7 @@ jobs:
                 success_count: successCount,
                 error_count: errorCount,
                 votes_total: votesTotal,
-                source: 'github_actions'
+                source: 'github_actions_dynamic'
               });
               
               console.log('📝 Log d\'envoi sauvegardé');
@@ -352,7 +421,7 @@ jobs:
           main();
           EOF
 
-      - name: Send daily email
+      - name: Send dynamic email
         env:
           # Firebase Service Account (obligatoire)
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
@@ -368,7 +437,7 @@ jobs:
           EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
           EMAILJS_TEMPLATE_ID: ${{ secrets.EMAILJS_TEMPLATE_ID }}
           
-          # Options
+          # Mode test (pour bypasser les vérifications)
           FORCE_SEND: ${{ github.event.inputs.force_send }}
           
         run: node email-service.js
