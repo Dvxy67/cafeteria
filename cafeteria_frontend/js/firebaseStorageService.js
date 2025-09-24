@@ -1,7 +1,7 @@
 // firebaseStorageService.js - Gestion du stockage d'images Firebase
 
 import { appState } from './config.js';
-import { getTodayKey } from './utils.js';
+import { getCurrentMenuKey } from './utils.js';
 
 let storage = null;
 
@@ -42,9 +42,9 @@ export async function uploadMenuImage(file) {
     try {
         const { ref, uploadBytes, getDownloadURL } = window.firebaseStorageFunctions;
         
-        // Créer une référence unique pour l'image du jour
-        const todayKey = getTodayKey();
-        const fileName = `menu_${todayKey}.${file.name.split('.').pop()}`;
+        // Créer une référence unique pour l'image de la semaine
+        const menuKey = getCurrentMenuKey();
+        const fileName = `menu_${menuKey}.${file.name.split('.').pop()}`;
         const imageRef = ref(storage, `menus/${fileName}`);
         
         // Upload du fichier
@@ -55,7 +55,7 @@ export async function uploadMenuImage(file) {
         const downloadURL = await getDownloadURL(imageRef);
         
         // Sauvegarder l'URL dans Firestore
-        await saveImageURL(todayKey, downloadURL, fileName);
+        await saveImageURL(menuKey, downloadURL, fileName);
         
         return {
             success: true,
@@ -89,12 +89,12 @@ async function saveImageURL(dateKey, imageURL, fileName) {
     }
 }
 
-// Récupérer l'URL de l'image du jour
+// Récupérer l'URL de l'image de la semaine
 export async function getTodayImageURL() {
     try {
         const { doc, getDoc } = window.firebaseFunctions;
-        const todayKey = getTodayKey();
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
+        const menuKey = getCurrentMenuKey();
+        const imageDocRef = doc(appState.db, "menu_images", menuKey);
         
         const docSnap = await getDoc(imageDocRef);
         
@@ -110,14 +110,14 @@ export async function getTodayImageURL() {
     }
 }
 
-// Supprimer l'image du jour
+// Supprimer l'image de la semaine
 export async function deleteTodayImage() {
     try {
         const { ref, deleteObject } = window.firebaseStorageFunctions;
         const { doc, deleteDoc, getDoc } = window.firebaseFunctions;
         
-        const todayKey = getTodayKey();
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
+        const menuKey = getCurrentMenuKey();
+        const imageDocRef = doc(appState.db, "menu_images", menuKey);
         
         // Récupérer les infos de l'image
         const docSnap = await getDoc(imageDocRef);

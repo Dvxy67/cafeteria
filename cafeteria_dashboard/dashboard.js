@@ -493,7 +493,7 @@ function refreshData() {
         console.log('🔄 Actualisation des données');
         loadAllData();
         
-        // Recharger l'image du jour aussi si disponible
+        // Recharger l'image de la semaine aussi si disponible
         if (imageServiceLoaded && window.loadTodayImage) {
             setTimeout(async () => {
                 try {

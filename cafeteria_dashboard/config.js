@@ -143,6 +143,19 @@ export const UTILS = {
         minute: '2-digit' 
     }),
     getTodayKey: () => new Date().toISOString().split('T')[0],
+    getCurrentMenuKey: () => {
+        const today = new Date();
+        const day = today.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + diffToMonday);
+
+        const year = monday.getFullYear();
+        const month = String(monday.getMonth() + 1).padStart(2, '0');
+        const date = String(monday.getDate()).padStart(2, '0');
+
+        return `${year}-${month}-${date}`;
+    },
     generateUniqueId: () => `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     validateEmail: (email) => {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

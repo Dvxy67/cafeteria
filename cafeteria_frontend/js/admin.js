@@ -161,14 +161,14 @@ export async function uploadImage() {
     }
 }
 
-// Supprimer l'image du jour
+// Supprimer l'image de la semaine
 export async function deleteCurrentImage() {
     if (!appState.isAdminLoggedIn) {
         alert('Accès réservé aux administrateurs !');
         return;
     }
     
-    if (!confirm('Êtes-vous sûr de vouloir supprimer l\'image du menu d\'aujourd\'hui ?')) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer l\'image du menu de la semaine en cours ?')) {
         return;
     }
     
@@ -183,12 +183,12 @@ export async function deleteCurrentImage() {
         
         if (success) {
             alert('Image supprimée avec succès de Cloudinary !');
-            
+
             // Remettre l'image par défaut
             updateMenuImage(CONFIG.IMAGE_URL);
             updateCurrentImageDisplay(null);
         } else {
-            alert('Aucune image à supprimer pour aujourd\'hui');
+            alert('Aucune image à supprimer pour cette semaine');
         }
         
     } catch (error) {
@@ -206,7 +206,7 @@ function updateCurrentImageDisplay(previewImageURL, originalURL = null) {
     
     if (previewImageURL) {
         currentImageDiv.innerHTML = `
-            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Image actuelle du jour (Cloudinary) :</p>
+            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Image actuelle de la semaine (Cloudinary) :</p>
             <img src="${previewImageURL}" alt="Menu actuel" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer;" 
                  onclick="showImageDetails('${originalURL || previewImageURL}')"
                  title="Cliquez pour voir les détails">
@@ -215,7 +215,7 @@ function updateCurrentImageDisplay(previewImageURL, originalURL = null) {
     } else {
         currentImageDiv.innerHTML = `
             <p style="color: #999; font-size: 12px; font-style: italic;">Image par défaut utilisée</p>
-            <p style="color: #ccc; font-size: 10px;">Aucune image uploadée aujourd'hui</p>
+            <p style="color: #ccc; font-size: 10px;">Aucune image uploadée cette semaine</p>
         `;
     }
 }
@@ -243,7 +243,7 @@ function clearImagePreview() {
     }
 }
 
-// Charger l'image du jour au démarrage
+// Charger l'image de la semaine au démarrage
 export async function loadTodayImage() {
     try {
         const imageURL = await getTodayImageURL();
@@ -259,7 +259,7 @@ export async function loadTodayImage() {
                 updateCurrentImageDisplay(previewImageURL, imageURL);
             }
             
-            console.log('Image du jour chargée depuis Cloudinary:', imageURL);
+            console.log('Image de la semaine chargée depuis Cloudinary:', imageURL);
         } else {
             // Utiliser l'image par défaut
             updateMenuImage(CONFIG.IMAGE_URL);
@@ -294,7 +294,7 @@ export function exportResults() {
     exportText += `Ne mangent pas à la cantine: ${countNon}\n`;
     exportText += `Total participants: ${countOui + countNon}\n\n`;
     
-    // Ajouter l'info sur l'image du jour
+    // Ajouter l'info sur l'image de la semaine
     if (appState.currentImageURL && appState.currentImageURL !== CONFIG.IMAGE_URL) {
         exportText += `Image du menu: ${appState.currentImageURL}\n`;
         exportText += `Service: Cloudinary\n\n`;

@@ -14,15 +14,15 @@ import {
 import { submitVote } from './voting.js';
 import { getTodayImageURL, getModalImageURL } from './cloudinaryService.js';
 
-// Charger l'image du jour depuis Cloudinary
+// Charger l'image de la semaine depuis Cloudinary
 async function loadTodayImage() {
     try {
-        console.log('🖼️ Chargement de l\'image du jour...');
+        console.log('🖼️ Chargement de l\'image de la semaine...');
         
         const imageURL = await getTodayImageURL();
         
         if (imageURL) {
-            console.log('✅ Image trouvée:', imageURL);
+            console.log('✅ Image de la semaine trouvée:', imageURL);
             const modalImageURL = getModalImageURL(imageURL);
             updateMenuImage(modalImageURL);
         } else {
@@ -30,7 +30,7 @@ async function loadTodayImage() {
             updateMenuImage(CONFIG.IMAGE_URL);
         }
     } catch (error) {
-        console.error('❌ Erreur chargement image:', error);
+        console.error('❌ Erreur chargement image de la semaine:', error);
         updateMenuImage(CONFIG.IMAGE_URL);
     }
 }
@@ -55,7 +55,7 @@ async function initApp() {
         // Charger les données
         await loadTodayData();
         
-        // Charger l'image du jour
+        // Charger l'image de la semaine
         if (firebaseReady) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             await loadTodayImage();
