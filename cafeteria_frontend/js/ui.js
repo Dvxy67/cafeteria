@@ -133,7 +133,7 @@ export function showImageModal() {
     const imageTitle = document.getElementById('imageTitle');
     
     if (modalImage) modalImage.src = currentImageURL;
-    if (imageTitle) imageTitle.textContent = `Menu du jour - ${new Date().toLocaleDateString('fr-FR')}`;
+    if (imageTitle) imageTitle.textContent = 'Menu de la semaine';
     
     if (modal) {
         modal.classList.add('show');

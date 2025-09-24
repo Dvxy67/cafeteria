@@ -1,9 +1,10 @@
 // image_menu_service.js - Version corrigée
 
-import { 
+import {
     CLOUDINARY_CONFIG,
     IMAGE_CONFIG,
-    appState 
+    appState,
+    UTILS
 } from './config.js';
 
 // Variable pour stocker l'URL de l'image actuelle
@@ -18,7 +19,7 @@ export async function initImageService() {
     // Exposer les fonctions globalement
     exposeImageFunctions();
     
-    // Charger l'image du jour immédiatement
+    // Charger l'image de la semaine immédiatement
     await loadTodayImage();
     
     // S'assurer que l'image est mise à jour dans l'interface
@@ -32,7 +33,7 @@ export async function initImageService() {
  */
 export async function loadTodayImage() {
     try {
-        console.log('📷 Chargement de l\'image du jour...');
+        console.log('📷 Chargement de l\'image de la semaine...');
         
         const imageURL = await getTodayImageURL();
         
@@ -53,7 +54,7 @@ export async function loadTodayImage() {
                 updateCurrentImageDisplay(previewImageURL, imageURL);
             }
             
-            console.log('✅ Image du jour mise à jour');
+            console.log('✅ Image de la semaine mise à jour');
             return imageURL;
         } else {
             console.log('📷 Aucune image personnalisée, utilisation de l\'image par défaut');
@@ -113,11 +114,11 @@ export async function getTodayImageURL() {
             return null;
         }
 
-        const todayKey = getTodayKey();
-        
+        const menuKey = UTILS.getCurrentMenuKey();
+
         // Utiliser les fonctions Firebase exposées globalement
         const { doc, getDoc } = window.firebaseFunctions;
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
+        const imageDocRef = doc(appState.db, "menu_images", menuKey);
         
         const docSnap = await getDoc(imageDocRef);
         
@@ -131,11 +132,11 @@ export async function getTodayImageURL() {
                 return data.imageURL;
             } else {
                 console.warn('⚠️ Image non accessible sur Cloudinary, nettoyage...');
-                await deleteImageRecord(todayKey);
+                await deleteImageRecord(menuKey);
                 return null;
             }
         } else {
-            console.log('📄 Aucun document image pour aujourd\'hui');
+            console.log('📄 Aucun document image pour cette semaine');
             return null;
         }
         
@@ -148,10 +149,6 @@ export async function getTodayImageURL() {
 /**
  * FONCTIONS UTILITAIRES
  */
-function getTodayKey() {
-    return new Date().toISOString().split('T')[0];
-}
-
 async function validateCloudinaryImage(imageURL) {
     try {
         const response = await fetch(imageURL, { method: 'HEAD' });
@@ -267,9 +264,9 @@ export async function uploadImage() {
         console.log('📄 Début upload vers Cloudinary...');
         
         const formData = new FormData();
-        const todayKey = getTodayKey();
+        const menuKey = UTILS.getCurrentMenuKey();
         const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const publicId = `menu_${todayKey}_${uniqueId}`;
+        const publicId = `menu_${menuKey}_${uniqueId}`;
         
         formData.append('file', file);
         formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
@@ -292,7 +289,7 @@ export async function uploadImage() {
         console.log('✅ Upload réussi:', data.secure_url);
         
         // Sauvegarder l'URL dans Firebase
-        const saved = await saveImageURLToDatabase(todayKey, data.secure_url, data.public_id);
+        const saved = await saveImageURLToDatabase(menuKey, data.secure_url, data.public_id);
         
         if (saved) {
             // Mettre à jour l'interface
@@ -394,7 +391,7 @@ export function updateCurrentImageDisplay(previewImageURL, originalURL = null) {
     
     if (previewImageURL) {
         currentImageDiv.innerHTML = `
-            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Image actuelle du jour :</p>
+            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Image actuelle de la semaine :</p>
             <img src="${previewImageURL}" alt="Menu actuel" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer;" 
                  onclick="showImageDetails('${originalURL || previewImageURL}')"
                  title="Cliquez pour voir les détails">
@@ -403,7 +400,7 @@ export function updateCurrentImageDisplay(previewImageURL, originalURL = null) {
     } else {
         currentImageDiv.innerHTML = `
             <p style="color: #999; font-size: 12px; font-style: italic;">Image par défaut utilisée</p>
-            <p style="color: #ccc; font-size: 10px;">Aucune image uploadée aujourd'hui</p>
+            <p style="color: #ccc; font-size: 10px;">Aucune image uploadée cette semaine</p>
         `;
     }
 }

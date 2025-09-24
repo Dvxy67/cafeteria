@@ -1,7 +1,7 @@
 // cloudinaryService.js - Gestion du stockage d'images Cloudinary
 
 import { appState } from './config.js';
-import { getTodayKey } from './utils.js';
+import { getCurrentMenuKey } from './utils.js';
 
 // Configuration Cloudinary - SANS API KEY pour unsigned
 const CLOUDINARY_CONFIG = {
@@ -19,8 +19,8 @@ export async function uploadMenuImage(file) {
         console.log('⚙️ Config:', CLOUDINARY_CONFIG);
         
         const formData = new FormData();
-        const todayKey = getTodayKey();
-        const publicId = `menu_${todayKey}_${Date.now()}`;
+        const menuKey = getCurrentMenuKey();
+        const publicId = `menu_${menuKey}_${Date.now()}`;
         
         // Paramètres minimaux pour un upload unsigned
         formData.append('file', file);
@@ -58,7 +58,7 @@ export async function uploadMenuImage(file) {
         }
         
         // Sauvegarder l'URL dans Firestore
-        await saveImageURL(todayKey, data.secure_url, data.public_id);
+        await saveImageURL(menuKey, data.secure_url, data.public_id);
         
         return {
             success: true,
@@ -94,12 +94,12 @@ async function saveImageURL(dateKey, imageURL, publicId) {
     }
 }
 
-// Récupérer l'URL de l'image du jour
+// Récupérer l'URL de l'image de la semaine
 export async function getTodayImageURL() {
     try {
         const { doc, getDoc } = window.firebaseFunctions;
-        const todayKey = getTodayKey();
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
+        const menuKey = getCurrentMenuKey();
+        const imageDocRef = doc(appState.db, "menu_images", menuKey);
         
         const docSnap = await getDoc(imageDocRef);
         
@@ -112,7 +112,7 @@ export async function getTodayImageURL() {
                 return data.imageURL;
             } else {
                 // Nettoyer la base si l'image n'existe plus
-                await deleteImageRecord(todayKey);
+                await deleteImageRecord(menuKey);
                 return null;
             }
         }
@@ -135,13 +135,13 @@ async function validateCloudinaryImage(imageURL) {
     }
 }
 
-// Supprimer l'image du jour
+// Supprimer l'image de la semaine
 export async function deleteTodayImage() {
     try {
         const { doc, deleteDoc, getDoc } = window.firebaseFunctions;
-        
-        const todayKey = getTodayKey();
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
+
+        const menuKey = getCurrentMenuKey();
+        const imageDocRef = doc(appState.db, "menu_images", menuKey);
         
         // Récupérer les infos de l'image
         const docSnap = await getDoc(imageDocRef);
@@ -163,7 +163,7 @@ export async function deleteTodayImage() {
                 return true;
             }
         }
-        
+
         return false;
     } catch (error) {
         console.error('Erreur suppression image:', error);

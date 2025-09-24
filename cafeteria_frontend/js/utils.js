@@ -2,10 +2,22 @@
 
 import { CONFIG } from './config.js';
 
-// Obtenir la clé du jour
+// Obtenir la clé du jour (utilisée pour les votes quotidiens)
 export function getTodayKey() {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+}
+
+// Obtenir la clé du menu courant (basée sur le lundi de la semaine)
+export function getCurrentMenuKey() {
+    const today = new Date();
+    const day = today.getDay(); // 0 (dimanche) à 6 (samedi)
+
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+
+    return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 }
 
 // Mettre à jour la date et l'heure
