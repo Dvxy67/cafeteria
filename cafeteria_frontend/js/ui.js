@@ -151,48 +151,24 @@ export function showImageModal() {
         existingMedia.remove();
     }
     
+    // ✅ Ajouter/retirer la classe spéciale selon le type
+    if (currentFileType === 'pdf') {
+        modalContent.classList.add('pdf-modal'); // ✅ NOUVEAU : Classe pour PDF
+    } else {
+        modalContent.classList.remove('pdf-modal');
+    }
+    
     // Créer le contenu selon le type
     if (currentFileType === 'pdf') {
         // Créer un iframe pour le PDF
         const iframe = document.createElement('iframe');
         iframe.src = currentFileURL;
-        iframe.style.cssText = `
-            width: 100%;
-            height: 70vh;
-            border: none;
-            border-radius: 12px;
-            background: white;
-            margin: 0 auto;
-            display: block;
-        `;
+        // ✅ Plus besoin de styles inline, tout est dans le CSS maintenant
+        iframe.setAttribute('title', 'Menu PDF');
+        iframe.setAttribute('frameborder', '0');
         
         // Insérer avant le titre
         modalContent.insertBefore(iframe, imageTitle);
-        
-        // Ajouter un bouton de téléchargement
-        let downloadBtn = modalContent.querySelector('.pdf-download-btn');
-        if (!downloadBtn) {
-            downloadBtn = document.createElement('a');
-            downloadBtn.href = currentFileURL;
-            downloadBtn.download = 'menu.pdf';
-            downloadBtn.target = '_blank';
-            downloadBtn.className = 'pdf-download-btn';
-            downloadBtn.innerHTML = '📥 Télécharger le PDF';
-            downloadBtn.style.cssText = `
-                display: inline-block;
-                margin-top: 15px;
-                padding: 12px 24px;
-                background: linear-gradient(135deg, #333 0%, #555 100%);
-                color: white;
-                text-decoration: none;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 300;
-                letter-spacing: 1px;
-                transition: all 0.3s ease;
-            `;
-            modalContent.appendChild(downloadBtn);
-        }
         
     } else {
         // Afficher l'image
@@ -200,13 +176,8 @@ export function showImageModal() {
         img.src = currentFileURL;
         img.alt = 'Menu du jour';
         img.id = 'modalImage';
-        img.style.cssText = `
-            max-width: 100%;
-            max-height: 70vh;
-            border-radius: 12px;
-            display: block;
-            margin: 0 auto;
-        `;
+        // ✅ Styles minimaux, le reste est dans le CSS
+        
         img.onerror = function() {
             console.warn('⚠️ Erreur chargement image, fallback vers défaut');
             this.src = CONFIG.IMAGE_URL;
@@ -235,6 +206,12 @@ export function closeImageModal() {
     if (modal) {
         modal.classList.remove('show');
         document.body.style.overflow = '';
+        
+        // ✅ Nettoyer la classe pdf-modal aussi
+        const modalContent = modal.querySelector('.image-modal-content');
+        if (modalContent) {
+            modalContent.classList.remove('pdf-modal');
+        }
     }
 }
 
@@ -268,3 +245,91 @@ export function setupEventListeners() {
         }
     });
 }
+
+// ========================================
+// SYSTÈME DE LANGUES BILINGUES (NOUVEAU)
+// ========================================
+
+// Initialiser le stockage des images
+if (!window.menuImages) {
+    window.menuImages = {
+        fr: null,
+        nl: null
+    };
+}
+
+// Variable pour stocker le type de fichier actuel
+if (!window.menuFileTypes) {
+    window.menuFileTypes = {
+        fr: 'image',
+        nl: 'image'
+    };
+}
+
+// Fonction pour changer de langue
+export function switchLanguage(lang) {
+    console.log(`🌍 Changement de langue vers: ${lang}`);
+    
+    // Vérifier que la langue est valide
+    if (lang !== 'fr' && lang !== 'nl') {
+        console.error('❌ Langue invalide:', lang);
+        return;
+    }
+    
+    // Sauvegarder la préférence dans localStorage
+    localStorage.setItem('user_language_preference', lang);
+    console.log(`💾 Préférence sauvegardée: ${lang}`);
+    
+    // Mettre à jour l'apparence des boutons
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.lang === lang) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Charger le fichier correspondant (image ou PDF)
+    const fileURL = window.menuImages[lang] || CONFIG.IMAGE_URL;
+    const fileType = window.menuFileTypes[lang] || 'image';
+    
+    console.log(`🖼️ Fichier à afficher (${lang}):`, fileURL, `Type: ${fileType}`);
+    
+    // Mettre à jour les variables globales
+    currentFileURL = fileURL;
+    currentFileType = fileType;
+    
+    // Mettre à jour l'image de la modal
+    const modalImage = document.getElementById('modalImage');
+    if (modalImage && fileType === 'image') {
+        modalImage.src = fileURL;
+    }
+    
+    // Changer le texte du bouton "Voir le menu" (optionnel)
+    const viewMenuText = document.getElementById('viewMenuText');
+    if (viewMenuText) {
+        viewMenuText.textContent = lang === 'nl' ? 'Bekijk menu' : 'Voir le menu';
+    }
+    
+    // Changer le titre de la modal (optionnel)
+    const imageTitle = document.getElementById('imageTitle');
+    if (imageTitle) {
+        const date = new Date().toLocaleDateString('fr-FR');
+        imageTitle.textContent = lang === 'nl' ? 
+            `Menu van de dag - ${date}` : 
+            `Menu du jour - ${date}`;
+    }
+    
+    console.log(`✅ Langue changée vers: ${lang}`);
+}
+
+// Fonction pour charger la langue préférée au démarrage
+export function loadUserLanguagePreference() {
+    const savedLang = localStorage.getItem('user_language_preference') || 'fr';
+    console.log(`📖 Langue préférée chargée: ${savedLang}`);
+    return savedLang;
+}
+
+// Exposer globalement pour que le HTML puisse l'appeler
+window.switchLanguage = switchLanguage;
+
+console.log('✅ Système de langues bilingues chargé');

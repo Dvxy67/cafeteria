@@ -28,6 +28,7 @@
         <div class="image-modal-content">
             <button class="image-modal-close" onclick="closeImageModal()">&times;</button>
             <img id="modalImage" src="" alt="Menu du jour">
+            <!-- l’iframe sera injecté ici en JS -->
             <div class="image-title" id="imageTitle">Menu du jour</div>
         </div>
     </div>
@@ -53,14 +54,27 @@
                 <p>Chargement...</p>
             </div>
 
-            <!-- Section Image du Menu -->
-            <div class="image-section" id="imageSection">
-                <div class="image-section-title">Menu du jour</div>
-                <button class="view-image-btn" onclick="showImageModal()" id="viewImageBtn">
-                    <span class="icon">📸</span>
-                    <span>Voir le menu</span>
-                </button>
-            </div>
+<!-- Section Image du Menu avec sélecteur de langue -->
+<div class="image-section" id="imageSection">
+    <div class="image-section-title">Menu du jour</div>
+    
+    <!-- NOUVEAU : Sélecteur de langue -->
+    <div class="language-toggle">
+        <button class="lang-btn active" data-lang="fr" onclick="switchLanguage('fr')">
+            <span class="flag">🇫🇷</span>
+            <span class="lang-text">FR</span>
+        </button>
+        <button class="lang-btn" data-lang="nl" onclick="switchLanguage('nl')">
+            <span class="flag">🇳🇱</span>
+            <span class="lang-text">NL</span>
+        </button>
+    </div>
+    
+    <button class="view-image-btn" onclick="showImageModal()" id="viewImageBtn">
+        <span class="icon">📸</span>
+        <span id="viewMenuText">Voir le menu</span>
+    </button>
+</div>
             
             <!-- Section Formulaire -->
             <div class="form-section" id="formSection">

@@ -347,6 +347,91 @@ body::after {
 }
 
 /* Bouton image amélioré */
+
+/* ===== LANGUAGE TOGGLE (NOUVEAU) ===== */
+
+.language-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 0 20px;
+}
+
+.lang-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 13px;
+    font-weight: 400;
+    color: #666;
+    letter-spacing: 0.5px;
+    font-family: 'Inter', sans-serif;
+}
+
+.lang-btn .flag {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.lang-btn .lang-text {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.lang-btn:hover {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.lang-btn.active {
+    background: rgba(50, 50, 50, 0.95);
+    border-color: rgba(50, 50, 50, 0.95);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.lang-btn.active .flag {
+    filter: brightness(1.1);
+}
+
+.lang-btn.active:hover {
+    background: rgba(50, 50, 50, 1);
+}
+
+/* Responsive pour mobile */
+@media (max-width: 480px) {
+    .language-toggle {
+        gap: 8px;
+        padding: 0 10px;
+    }
+    
+    .lang-btn {
+        padding: 10px 20px;
+        font-size: 12px;
+    }
+    
+    .lang-btn .flag {
+        font-size: 18px;
+    }
+    
+    .lang-btn .lang-text {
+        font-size: 13px;
+    }
+}
+
+/* ===== FIN LANGUAGE TOGGLE ===== */
+
 .view-image-btn {
     display: inline-flex;
     align-items: center;
@@ -812,69 +897,75 @@ body::after {
     }
 }
 
-/* À AJOUTER à la fin de votre fichier styles_version_menu_cafeteria.css */
-
 /* ============================================
-   STYLES POUR LE SUPPORT PDF
+   STYLES POUR LE SUPPORT PDF - VERSION PLEIN ÉCRAN
    ============================================ */
 
-/* Modal améliorée pour PDF */
-.image-modal-content iframe {
+/* Modal PDF : VRAIMENT plein écran */
+.image-modal-content.pdf-modal {
+    max-width: 98vw !important;
+    max-height: 98vh !important;
+    width: 98vw !important;        /* ✅ AJOUTÉ : force la largeur */
+    height: 98vh !important;       /* ✅ AJOUTÉ : force la hauteur */
+    padding: 10px !important;      /* ✅ RÉDUIT : moins de padding */
+    margin: 0 !important;
+    display: flex !important;      /* ✅ AJOUTÉ : pour layout flexible */
+    flex-direction: column !important;
+}
+
+/* Iframe PDF qui remplit TOUTE la modal */
+.image-modal-content.pdf-modal iframe {
+    width: 100% !important;
+    height: calc(100% - 45px) !important; /* ✅ 45px pour le titre */
+    flex-grow: 1 !important;       /* ✅ AJOUTÉ : prend tout l'espace */
+    border: none !important;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    animation: fadeInScale 0.4s ease;
+}
+
+/* Titre compact en bas */
+.image-modal-content.pdf-modal .image-title {
+    font-size: 13px !important;
+    margin-top: 8px !important;
+    padding: 5px !important;
+    flex-shrink: 0 !important;     /* ✅ Ne pas rétrécir */
+    height: 35px;                   /* ✅ Hauteur fixe */
+}
+
+/* Bouton close bien visible */
+.image-modal-content.pdf-modal .image-modal-close {
+    position: fixed !important;     /* ✅ Position fixe, pas absolue */
+    top: 15px !important;
+    right: 15px !important;
+    z-index: 10001 !important;
+    width: 50px;
+    height: 50px;
+    font-size: 26px;
+    background: rgba(0, 0, 0, 0.85) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.image-modal-content.pdf-modal .image-modal-close:hover {
+    background: rgba(220, 38, 38, 0.95) !important;
+    transform: scale(1.1) rotate(90deg);
+}
+
+/* Pour les IMAGES normales (pas PDF) : garder comportement actuel */
+.image-modal-content:not(.pdf-modal) {
+    max-width: 90%;
+    max-height: 90%;
+    padding: 20px;
+}
+
+.image-modal-content:not(.pdf-modal) img {
     max-width: 100%;
     max-height: 70vh;
-    border: none;
     border-radius: 12px;
-    background: white;
-    display: block;
-    margin: 0 auto 15px auto;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Bouton de téléchargement PDF */
-.pdf-download-btn {
-    display: inline-block;
-    margin-top: 15px;
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #333 0%, #555 100%);
-    color: white !important;
-    text-decoration: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 300;
-    letter-spacing: 1px;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    text-align: center;
-    border: none;
-    position: relative;
-    overflow: hidden;
-}
-
-.pdf-download-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.6s;
-}
-
-.pdf-download-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-}
-
-.pdf-download-btn:hover::before {
-    left: 100%;
-}
-
-.pdf-download-btn:active {
-    transform: translateY(0);
-}
-
-/* Indicateur de type de fichier sur le bouton */
+/* Indicateur PDF sur le bouton */
 .view-image-btn[data-type="pdf"]::after {
     content: 'PDF';
     position: absolute;
@@ -889,11 +980,7 @@ body::after {
     letter-spacing: 0.5px;
 }
 
-/* Animation de chargement pour iframe */
-.image-modal-content iframe {
-    animation: fadeInScale 0.5s ease;
-}
-
+/* Animation */
 @keyframes fadeInScale {
     from {
         opacity: 0;
@@ -902,6 +989,54 @@ body::after {
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+/* ====== MOBILE : Encore plus grand ====== */
+@media (max-width: 768px) {
+    .image-modal-content.pdf-modal {
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 5px !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .image-modal-content.pdf-modal iframe {
+        height: calc(100% - 35px) !important;
+        border-radius: 0 !important;
+    }
+    
+    .image-modal-content.pdf-modal .image-modal-close {
+        top: 8px !important;
+        right: 8px !important;
+        width: 42px;
+        height: 42px;
+        font-size: 22px;
+    }
+    
+    .image-modal-content.pdf-modal .image-title {
+        font-size: 11px !important;
+        margin-top: 5px !important;
+        height: 30px;
+    }
+}
+
+/* Très petits écrans */
+@media (max-width: 480px) {
+    .image-modal-content.pdf-modal {
+        padding: 3px !important;
+    }
+    
+    .image-modal-content.pdf-modal iframe {
+        height: calc(100% - 28px) !important;
+    }
+    
+    .image-modal-content.pdf-modal .image-title {
+        font-size: 10px !important;
+        height: 25px;
     }
 }
 
@@ -923,7 +1058,37 @@ body::after {
 /* Responsive pour PDF sur mobile */
 @media (max-width: 768px) {
     .image-modal-content iframe {
-        max-height: 60vh;
+        height: 80vh; /* ✅ Plus grand sur mobile aussi */
+    }
+    
+    /* ✅ NOUVEAU : Modal PDF encore plus grande sur mobile */
+    .image-modal-content.pdf-modal {
+        max-width: 98% !important;
+        max-height: 98vh !important;
+        padding: 10px !important;
+        margin: 5px;
+    }
+    
+    .image-modal-content.pdf-modal iframe {
+        height: 85vh !important; /* Maximum sur mobile */
+        border-radius: 8px;
+    }
+    
+    /* ✅ Bouton close plus accessible sur PDF mobile */
+    .image-modal-content.pdf-modal .image-modal-close {
+        width: 35px;
+        height: 35px;
+        top: 8px;
+        right: 8px;
+        font-size: 18px;
+        z-index: 1000;
+    }
+    
+    /* ✅ Titre plus compact sur PDF mobile */
+    .image-modal-content.pdf-modal .image-title {
+        font-size: 12px;
+        margin-top: 8px;
+        padding: 5px;
     }
     
     .pdf-download-btn {
@@ -950,7 +1115,6 @@ body::after {
         margin-bottom: 15px;
     }
 }
-
 /* Style pour le loader pendant le chargement du PDF */
 .pdf-loader {
     text-align: center;

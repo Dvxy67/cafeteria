@@ -110,6 +110,7 @@ export const DOM_ELEMENTS = {
     FILE_UPLOAD: 'fileUpload',
     FILE_PREVIEW: 'filePreview',
     UPLOAD_BTN: 'uploadBtn',
+    IMAGE_UPLOAD_SECTION: 'imageUploadSection',
     CURRENT_FILE_DISPLAY: 'currentFileDisplay',
     EMAIL_CONFIG: 'emailConfig',
     EMAIL_STATUS: 'emailStatus',

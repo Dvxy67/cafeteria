@@ -95,8 +95,9 @@ async function saveFileURL(dateKey, fileURL, publicId, fileType) {
     }
 }
 
-// Récupérer l'URL et le type du fichier du jour
-export async function getTodayFileData() {
+
+// NOUVELLE : Récupérer les URLs des DEUX fichiers du jour (FR + NL)
+export async function getTodayFileDataBilingual() {
     try {
         const { doc, getDoc } = window.firebaseFunctions;
         const todayKey = getTodayKey();
@@ -107,13 +108,24 @@ export async function getTodayFileData() {
         
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
-            console.log('📄 Fichier trouvé dans menu_files:', data);
+            console.log('📦 Données fichiers récupérées:', data);
             
-            return {
-                url: data.fileURL,
-                type: data.fileType || 'image',
-                publicId: data.publicId
+            // Support nouveau format bilingue
+            const result = {
+                fr: {
+                    url: data.fileURL_fr || data.fileURL || null,
+                    type: data.fileType_fr || data.fileType || 'image',
+                    publicId: data.publicId_fr || data.publicId || null
+                },
+                nl: {
+                    url: data.fileURL_nl || data.fileURL || null,
+                    type: data.fileType_nl || data.fileType || 'image',
+                    publicId: data.publicId_nl || data.publicId || null
+                }
             };
+            
+            console.log('🖼️ Données finales (bilingue):', result);
+            return result;
         }
         
         // 2. Si pas trouvé, essayer l'ancienne collection "menu_images" (compatibilité)
@@ -125,26 +137,53 @@ export async function getTodayFileData() {
             const data = imageDocSnap.data();
             console.log('📄 Image trouvée dans menu_images:', data);
             
-            return {
+            // Support ancien format (une seule image pour les deux langues)
+            const fallbackData = {
                 url: data.imageURL,
-                type: 'image', // Les anciennes données sont toujours des images
+                type: 'image',
                 publicId: data.publicId
+            };
+            
+            return {
+                fr: fallbackData,
+                nl: fallbackData  // Même image pour les deux langues
             };
         }
         
-        console.log('📄 Aucun fichier trouvé pour aujourd\'hui');
-        return null;
+        console.log('📭 Aucun fichier trouvé pour aujourd\'hui');
+        return {
+            fr: { url: null, type: 'image', publicId: null },
+            nl: { url: null, type: 'image', publicId: null }
+        };
         
     } catch (error) {
-        console.error('Erreur récupération fichier:', error);
-        return null;
+        console.error('❌ Erreur récupération fichiers bilingues:', error);
+        return {
+            fr: { url: null, type: 'image', publicId: null },
+            nl: { url: null, type: 'image', publicId: null }
+        };
     }
 }
 
-// Fonction de compatibilité - retourne juste l'URL (pour ne pas casser le code existant)
+// Fonction simplifiée pour récupérer juste les URLs (sans les métadonnées)
+export async function getTodayImageURLs() {
+    const fileData = await getTodayFileDataBilingual();
+    return {
+        fr: fileData.fr.url,
+        nl: fileData.nl.url
+    };
+}
+
+// GARDER la fonction de compatibilité - retourne juste l'URL FR
 export async function getTodayImageURL() {
-    const fileData = await getTodayFileData();
-    return fileData ? fileData.url : null;
+    const urls = await getTodayImageURLs();
+    return urls.fr; // Par défaut retourner le français
+}
+
+// GARDER aussi getTodayFileData pour compatibilité avec ton code existant
+export async function getTodayFileData() {
+    const fileData = await getTodayFileDataBilingual();
+    return fileData.fr; // Par défaut retourner les données FR
 }
 
 // Valider qu'un fichier existe sur Cloudinary

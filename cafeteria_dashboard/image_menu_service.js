@@ -1,5 +1,5 @@
-// image_menu_service.js - MAINTENANT AVEC SUPPORT PDF
-// ⚠️ Le nom reste "image" mais le service gère maintenant les images ET les PDF
+// image_menu_service.js - SUPPORT COMPLET BILINGUE + PDF
+// Gère les images ET les PDF pour FR et NL
 
 import { 
     CLOUDINARY_CONFIG,
@@ -8,14 +8,33 @@ import {
     appState 
 } from './config.js';
 
+// ===== VARIABLES GLOBALES =====
+
+// Variables anciennes (compatibilité)
 let currentFileURL = FILE_CONFIG.DEFAULT_IMAGE_URL;
 let currentFileType = 'image';
 
+// NOUVEAU : Stockage bilingue
+let currentFiles = {
+    fr: {
+        url: FILE_CONFIG.DEFAULT_IMAGE_URL,
+        type: 'image',
+        publicId: null
+    },
+    nl: {
+        url: FILE_CONFIG.DEFAULT_IMAGE_URL,
+        type: 'image',
+        publicId: null
+    }
+};
+
+// ===== INITIALISATION =====
+
 /**
- * INITIALISATION DU SERVICE
+ * Initialisation du service
  */
 export async function initImageService() {
-    console.log('🖼️ Initialisation du service de fichiers (images + PDF)...');
+    console.log('🖼️ Initialisation du service de fichiers (images + PDF bilingue)...');
     
     exposeImageFunctions();
     await loadTodayImage();
@@ -24,14 +43,23 @@ export async function initImageService() {
     console.log('✅ Service de fichiers initialisé');
 }
 
+// ===== CHARGEMENT DES FICHIERS =====
+
 /**
- * CHARGEMENT DU FICHIER DU JOUR
- * Note: La fonction s'appelle "loadTodayImage" mais charge aussi les PDF
+ * Charger les fichiers du jour (version adaptée pour bilingue)
  */
 export async function loadTodayImage() {
     try {
-        console.log('📄 Chargement du fichier du jour...');
+        console.log('📄 Chargement des fichiers du jour...');
         
+        // Si on est dans le dashboard admin, charger en mode bilingue
+        if (appState.isAdminLoggedIn) {
+            console.log('👤 Mode admin : chargement bilingue');
+            return await loadTodayImagesBilingual();
+        }
+        
+        // Sinon, charger normalement (pour compatibilité)
+        console.log('👤 Mode public : chargement standard');
         const fileData = await getTodayImageURL();
         
         if (fileData && fileData.url) {
@@ -48,7 +76,6 @@ export async function loadTodayImage() {
                 updateCurrentImageDisplay(fileData.url, fileData.type);
             }
             
-            console.log('✅ Fichier du jour mis à jour');
             return fileData;
         } else {
             console.log('📄 Aucun fichier personnalisé, utilisation par défaut');
@@ -81,8 +108,57 @@ export async function loadTodayImage() {
 }
 
 /**
- * RÉCUPÉRATION DU FICHIER DEPUIS FIREBASE
- * Note: Vérifie d'abord "menu_files", puis "menu_images" pour compatibilité
+ * NOUVELLE FONCTION : Charger les deux fichiers du jour (FR + NL)
+ */
+export async function loadTodayImagesBilingual() {
+    try {
+        console.log('📂 Chargement des fichiers FR et NL...');
+        
+        const fileData = await getTodayImageURLBilingual();
+        
+        // Mettre à jour FR
+        if (fileData.fr && fileData.fr.url) {
+            currentFiles.fr = fileData.fr;
+            updateCurrentImageDisplayBilingual('fr', fileData.fr.url, fileData.fr.type);
+            console.log('✅ Fichier FR chargé:', fileData.fr.url.substring(0, 50) + '...');
+        } else {
+            currentFiles.fr = {
+                url: FILE_CONFIG.DEFAULT_IMAGE_URL,
+                type: 'image',
+                publicId: null
+            };
+            updateCurrentImageDisplayBilingual('fr', null, 'image');
+            console.log('📷 Aucun fichier FR, utilisation par défaut');
+        }
+        
+        // Mettre à jour NL
+        if (fileData.nl && fileData.nl.url) {
+            currentFiles.nl = fileData.nl;
+            updateCurrentImageDisplayBilingual('nl', fileData.nl.url, fileData.nl.type);
+            console.log('✅ Fichier NL chargé:', fileData.nl.url.substring(0, 50) + '...');
+        } else {
+            currentFiles.nl = {
+                url: FILE_CONFIG.DEFAULT_IMAGE_URL,
+                type: 'image',
+                publicId: null
+            };
+            updateCurrentImageDisplayBilingual('nl', null, 'image');
+            console.log('📷 Aucun fichier NL, utilisation par défaut');
+        }
+        
+        console.log('✅ Chargement bilingue terminé');
+        return fileData;
+        
+    } catch (error) {
+        console.error('❌ Erreur chargement bilingue:', error);
+        return { fr: null, nl: null };
+    }
+}
+
+// ===== RÉCUPÉRATION DEPUIS FIREBASE =====
+
+/**
+ * Récupérer le fichier depuis Firebase (version ancienne, compatibilité)
  */
 async function getTodayImageURL() {
     try {
@@ -94,33 +170,43 @@ async function getTodayImageURL() {
         const todayKey = UTILS.getTodayKey();
         const { doc, getDoc } = window.firebaseFunctions;
         
-        // 1. Essayer d'abord la nouvelle collection "menu_files" (images + PDF)
+        // 1. Essayer d'abord la nouvelle collection "menu_files"
         const fileDocRef = doc(appState.db, "menu_files", todayKey);
         const fileDocSnap = await getDoc(fileDocRef);
         
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
-            console.log('📄 Document fichier trouvé dans menu_files:', data);
+            console.log('📄 Document fichier trouvé dans menu_files');
             
-            return {
-                url: data.fileURL,
-                type: data.fileType || 'image',
-                publicId: data.publicId
-            };
+            // Priorité au français si disponible
+            if (data.fileURL_fr) {
+                return {
+                    url: data.fileURL_fr,
+                    type: data.fileType_fr || 'image',
+                    publicId: data.publicId_fr
+                };
+            } else if (data.fileURL) {
+                // Ancien format
+                return {
+                    url: data.fileURL,
+                    type: data.fileType || 'image',
+                    publicId: data.publicId
+                };
+            }
         }
         
-        // 2. Si pas trouvé, essayer l'ancienne collection "menu_images" (compatibilité)
+        // 2. Si pas trouvé, essayer l'ancienne collection "menu_images"
         console.log('📋 Tentative dans menu_images (compatibilité)...');
         const imageDocRef = doc(appState.db, "menu_images", todayKey);
         const imageDocSnap = await getDoc(imageDocRef);
         
         if (imageDocSnap.exists()) {
             const data = imageDocSnap.data();
-            console.log('📄 Document image trouvé dans menu_images:', data);
+            console.log('📄 Document image trouvé dans menu_images');
             
             return {
                 url: data.imageURL,
-                type: 'image', // Les anciennes données sont toujours des images
+                type: 'image',
                 publicId: data.publicId
             };
         }
@@ -135,7 +221,52 @@ async function getTodayImageURL() {
 }
 
 /**
- * PRÉVISUALISATION DU FICHIER (Image ou PDF)
+ * NOUVELLE FONCTION : Récupérer les deux fichiers depuis Firebase
+ */
+async function getTodayImageURLBilingual() {
+    try {
+        if (!appState.db) {
+            console.warn('⚠️ Base de données non initialisée');
+            return { fr: null, nl: null };
+        }
+
+        const todayKey = UTILS.getTodayKey();
+        const { doc, getDoc } = window.firebaseFunctions;
+        
+        const fileDocRef = doc(appState.db, "menu_files", todayKey);
+        const fileDocSnap = await getDoc(fileDocRef);
+        
+        if (fileDocSnap.exists()) {
+            const data = fileDocSnap.data();
+            console.log('📄 Document bilingue trouvé:', data);
+            
+            return {
+                fr: {
+                    url: data.fileURL_fr || null,
+                    type: data.fileType_fr || 'image',
+                    publicId: data.publicId_fr || null
+                },
+                nl: {
+                    url: data.fileURL_nl || null,
+                    type: data.fileType_nl || 'image',
+                    publicId: data.publicId_nl || null
+                }
+            };
+        }
+        
+        console.log('📭 Aucun document bilingue trouvé');
+        return { fr: null, nl: null };
+        
+    } catch (error) {
+        console.error('❌ Erreur récupération bilingue:', error);
+        return { fr: null, nl: null };
+    }
+}
+
+// ===== PRÉVISUALISATION =====
+
+/**
+ * Prévisualisation du fichier (version ancienne)
  */
 export function previewImage() {
     const fileInput = document.getElementById('imageUpload');
@@ -163,7 +294,6 @@ export function previewImage() {
         
         reader.onload = function(e) {
             if (fileType === 'pdf') {
-                // Aperçu pour PDF
                 preview.innerHTML = `
                     <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Aperçu PDF :</p>
                     <div style="padding: 20px; background: #f3f4f6; border-radius: 8px; text-align: center;">
@@ -171,14 +301,12 @@ export function previewImage() {
                         <p style="color: #374151; font-weight: 500;">${file.name}</p>
                         <p style="color: #6b7280; font-size: 12px;">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
-                    <p style="color: #999; font-size: 10px; margin-top: 5px;">Le PDF sera visible après upload</p>
                 `;
             } else {
-                // Aperçu pour image
                 preview.innerHTML = `
                     <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Aperçu :</p>
                     <img src="${e.target.result}" alt="Aperçu" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 1px solid #ddd;">
-                    <p style="color: #999; font-size: 10px; margin-top: 5px;">Fichier: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>
+                    <p style="color: #999; font-size: 10px; margin-top: 5px;">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>
                 `;
             }
             preview.style.display = 'block';
@@ -195,7 +323,71 @@ export function previewImage() {
 }
 
 /**
- * UPLOAD VERS CLOUDINARY (Images ET PDF)
+ * NOUVELLE FONCTION : Prévisualisation bilingue (FR ou NL)
+ */
+export function previewImageBilingual(lang) {
+    console.log(`🖼️ Prévisualisation fichier ${lang.toUpperCase()}`);
+    
+    const fileInput = document.getElementById(`imageUpload${lang.toUpperCase()}`);
+    const preview = document.getElementById(`imagePreview${lang.toUpperCase()}`);
+    const uploadBtn = document.getElementById(`uploadBtn${lang.toUpperCase()}`);
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        clearPreviewBilingual(lang);
+        return;
+    }
+    
+    // Vérifier le type
+    if (!UTILS.validateFileType(file)) {
+        alert('Type de fichier non supporté. Utilisez JPG, PNG, GIF, WebP ou PDF');
+        fileInput.value = '';
+        clearPreviewBilingual(lang);
+        return;
+    }
+    
+    // Vérifier la taille
+    if (!UTILS.validateFileSize(file)) {
+        alert('Le fichier est trop volumineux (max 10MB)');
+        fileInput.value = '';
+        clearPreviewBilingual(lang);
+        return;
+    }
+    
+    const fileType = UTILS.getFileType(file);
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        if (fileType === 'pdf') {
+            preview.innerHTML = `
+                <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Aperçu PDF ${lang.toUpperCase()} :</p>
+                <div style="padding: 20px; background: #f3f4f6; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
+                    <p style="color: #374151; font-weight: 500;">${file.name}</p>
+                    <p style="color: #6b7280; font-size: 12px;">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+            `;
+        } else {
+            preview.innerHTML = `
+                <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Aperçu ${lang.toUpperCase()} :</p>
+                <img src="${e.target.result}" alt="Aperçu ${lang}" style="max-width: 100%; max-height: 150px; border-radius: 8px; border: 1px solid #ddd;">
+                <p style="color: #999; font-size: 10px; margin-top: 5px;">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</p>
+            `;
+        }
+        preview.style.display = 'block';
+    };
+    
+    reader.readAsDataURL(file);
+    
+    if (uploadBtn) {
+        uploadBtn.disabled = false;
+    }
+}
+
+// ===== UPLOAD VERS CLOUDINARY =====
+
+/**
+ * Upload vers Cloudinary (version ancienne)
  */
 export async function uploadImage() {
     const fileInput = document.getElementById('imageUpload');
@@ -209,10 +401,10 @@ export async function uploadImage() {
     const uploadBtn = document.getElementById('uploadBtn');
     const originalText = uploadBtn.textContent;
     uploadBtn.disabled = true;
-    uploadBtn.textContent = '📤 Upload en cours...';
+    uploadBtn.textContent = '⬆️ Upload en cours...';
     
     try {
-        console.log('📄 Début upload vers Cloudinary...');
+        console.log('📤 Début upload vers Cloudinary...');
         
         const fileType = UTILS.getFileType(file);
         const formData = new FormData();
@@ -225,16 +417,14 @@ export async function uploadImage() {
         formData.append('public_id', publicId);
         formData.append('folder', CLOUDINARY_CONFIG.folder);
         
-        // IMPORTANT: Pour les PDF, utiliser "raw" comme resource_type
         if (fileType === 'pdf') {
             formData.append('resource_type', 'raw');
         }
         
-        // Choisir l'endpoint selon le type de fichier
         const resourceType = fileType === 'pdf' ? 'raw' : 'image';
         const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/${resourceType}/upload`;
         
-        console.log(`📤 Upload vers: ${url} (type: ${resourceType})`);
+        console.log(`🌐 Upload vers: ${url} (type: ${resourceType})`);
         
         const response = await fetch(url, {
             method: 'POST',
@@ -249,7 +439,6 @@ export async function uploadImage() {
         
         console.log('✅ Upload réussi:', data.secure_url);
         
-        // Sauvegarder dans Firebase (nouvelle collection "menu_files")
         const saved = await saveImageURLToDatabase(todayKey, data.secure_url, data.public_id, fileType);
         
         if (saved) {
@@ -274,8 +463,92 @@ export async function uploadImage() {
 }
 
 /**
- * SAUVEGARDER DANS FIREBASE
- * Sauvegarde dans la nouvelle collection "menu_files"
+ * NOUVELLE FONCTION : Upload bilingue (FR ou NL)
+ */
+export async function uploadImageBilingual(lang) {
+    console.log(`📤 Upload fichier ${lang.toUpperCase()}`);
+    
+    const fileInput = document.getElementById(`imageUpload${lang.toUpperCase()}`);
+    const uploadBtn = document.getElementById(`uploadBtn${lang.toUpperCase()}`);
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Veuillez sélectionner un fichier');
+        return;
+    }
+    
+    const originalText = uploadBtn.textContent;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = '⬆️ Upload en cours...';
+    
+    try {
+        console.log(`📤 Début upload ${lang.toUpperCase()} vers Cloudinary...`);
+        
+        const fileType = UTILS.getFileType(file);
+        const formData = new FormData();
+        const todayKey = UTILS.getTodayKey();
+        const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const publicId = `menu_${todayKey}_${lang}_${uniqueId}`;
+        
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+        formData.append('public_id', publicId);
+        formData.append('folder', CLOUDINARY_CONFIG.folder);
+        
+        if (fileType === 'pdf') {
+            formData.append('resource_type', 'raw');
+        }
+        
+        const resourceType = fileType === 'pdf' ? 'raw' : 'image';
+        const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/${resourceType}/upload`;
+        
+        console.log(`🌐 Upload vers: ${url} (type: ${resourceType})`);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok || data.error) {
+            throw new Error(data.error?.message || `HTTP error! status: ${response.status}`);
+        }
+        
+        console.log(`✅ Upload ${lang.toUpperCase()} réussi:`, data.secure_url);
+        
+        const saved = await saveImageURLBilingual(todayKey, lang, data.secure_url, data.public_id, fileType);
+        
+        if (saved) {
+            currentFiles[lang] = {
+                url: data.secure_url,
+                type: fileType,
+                publicId: data.public_id
+            };
+            
+            updateCurrentImageDisplayBilingual(lang, data.secure_url, fileType);
+            
+            fileInput.value = '';
+            clearPreviewBilingual(lang);
+            
+            alert(`✅ Fichier ${lang.toUpperCase()} uploadé avec succès !`);
+        } else {
+            throw new Error('Erreur lors de la sauvegarde en base de données');
+        }
+        
+    } catch (error) {
+        console.error(`❌ Erreur upload ${lang.toUpperCase()}:`, error);
+        alert(`❌ Erreur lors de l'upload ${lang.toUpperCase()}: ` + error.message);
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = originalText;
+    }
+}
+
+// ===== SAUVEGARDE DANS FIREBASE =====
+
+/**
+ * Sauvegarder dans Firebase (version ancienne)
  */
 async function saveImageURLToDatabase(dateKey, fileURL, publicId, fileType) {
     try {
@@ -285,14 +558,12 @@ async function saveImageURLToDatabase(dateKey, fileURL, publicId, fileType) {
         }
 
         const { doc, setDoc } = window.firebaseFunctions;
-        
-        // Sauvegarder dans la nouvelle collection "menu_files"
         const fileDocRef = doc(appState.db, "menu_files", dateKey);
         
         await setDoc(fileDocRef, {
             fileURL: fileURL,
             publicId: publicId,
-            fileType: fileType, // 'image' ou 'pdf'
+            fileType: fileType,
             uploadDate: new Date().toISOString(),
             date: dateKey,
             provider: 'cloudinary'
@@ -307,7 +578,48 @@ async function saveImageURLToDatabase(dateKey, fileURL, publicId, fileType) {
 }
 
 /**
- * METTRE À JOUR L'AFFICHAGE DU MENU
+ * NOUVELLE FONCTION : Sauvegarder dans Firebase (version bilingue)
+ */
+async function saveImageURLBilingual(dateKey, lang, fileURL, publicId, fileType) {
+    try {
+        if (!appState.db) {
+            console.error('❌ Base de données non initialisée');
+            return false;
+        }
+
+        const { doc, setDoc, getDoc } = window.firebaseFunctions;
+        const fileDocRef = doc(appState.db, "menu_files", dateKey);
+        
+        // Charger le document existant pour ne pas écraser l'autre langue
+        const docSnap = await getDoc(fileDocRef);
+        const existingData = docSnap.exists() ? docSnap.data() : {};
+        
+        // Préparer les nouvelles données
+        const updatedData = {
+            ...existingData,
+            [`fileURL_${lang}`]: fileURL,
+            [`publicId_${lang}`]: publicId,
+            [`fileType_${lang}`]: fileType,
+            [`uploadDate_${lang}`]: new Date().toISOString(),
+            date: dateKey,
+            provider: 'cloudinary',
+            lastUpdated: new Date().toISOString()
+        };
+        
+        await setDoc(fileDocRef, updatedData);
+        
+        console.log(`✅ URL fichier ${lang.toUpperCase()} sauvegardée dans menu_files`);
+        return true;
+    } catch (error) {
+        console.error(`❌ Erreur sauvegarde URL fichier ${lang.toUpperCase()}:`, error);
+        return false;
+    }
+}
+
+// ===== AFFICHAGE =====
+
+/**
+ * Mettre à jour l'affichage du menu
  */
 export function updateMenuImage(fileURL, fileType) {
     currentFileURL = fileURL;
@@ -317,34 +629,30 @@ export function updateMenuImage(fileURL, fileType) {
     
     console.log('🖼️ Mise à jour affichage menu:', { fileURL, fileType });
     
-    // Notifier la page principale si elle a une fonction d'update
     if (window.updateModalContent) {
         window.updateModalContent(fileURL, fileType);
     }
 }
 
 /**
- * AFFICHAGE DANS L'ADMIN
+ * Afficher le fichier actuel dans l'admin (version ancienne)
  */
 function updateCurrentImageDisplay(fileURL, fileType) {
     const currentImageDiv = document.getElementById('currentImageDisplay');
     
     if (!currentImageDiv) {
-        console.warn('Élément currentImageDisplay non trouvé');
         return;
     }
     
     if (fileURL) {
         if (fileType === 'pdf') {
-            // Affichage pour PDF
             const thumbnailURL = getPDFThumbnail(fileURL);
             currentImageDiv.innerHTML = `
                 <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Fichier actuel (PDF) :</p>
                 <div style="text-align: center;">
                     ${thumbnailURL ? 
-                        `<img src="${thumbnailURL}" alt="Aperçu PDF" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer;" 
-                             onclick="window.open('${fileURL}', '_blank')"
-                             title="Cliquez pour ouvrir le PDF">` :
+                        `<img src="${thumbnailURL}" alt="Aperçu PDF" style="max-width: 200px; max-height: 150px; border-radius: 8px; cursor: pointer;" 
+                             onclick="window.open('${fileURL}', '_blank')">` :
                         `<div style="padding: 20px; background: #f3f4f6; border-radius: 8px; cursor: pointer;" onclick="window.open('${fileURL}', '_blank')">
                             <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
                             <p style="color: #374151; font-weight: 500;">Menu PDF</p>
@@ -354,13 +662,11 @@ function updateCurrentImageDisplay(fileURL, fileType) {
                 <p style="color: #999; font-size: 10px; margin-top: 5px;">✅ Type: PDF</p>
             `;
         } else {
-            // Affichage pour image
             const previewURL = getPreviewImageURL(fileURL);
             currentImageDiv.innerHTML = `
                 <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Image actuelle :</p>
-                <img src="${previewURL}" alt="Menu actuel" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer;" 
-                     onclick="window.open('${fileURL}', '_blank')"
-                     title="Cliquez pour voir en grand">
+                <img src="${previewURL}" alt="Menu actuel" style="max-width: 200px; max-height: 150px; border-radius: 8px; cursor: pointer;" 
+                     onclick="window.open('${fileURL}', '_blank')">
                 <p style="color: #999; font-size: 10px; margin-top: 5px;">✅ Type: Image</p>
             `;
         }
@@ -373,14 +679,123 @@ function updateCurrentImageDisplay(fileURL, fileType) {
 }
 
 /**
- * GÉNÉRATION THUMBNAIL PDF via Cloudinary
+ * NOUVELLE FONCTION : Afficher le fichier actuel (version bilingue)
+ */
+function updateCurrentImageDisplayBilingual(lang, fileURL, fileType) {
+    const currentImageDiv = document.getElementById(`currentImageDisplay${lang.toUpperCase()}`);
+    
+    if (!currentImageDiv) {
+        console.warn(`Élément currentImageDisplay${lang.toUpperCase()} non trouvé`);
+        return;
+    }
+    
+    if (fileURL) {
+        if (fileType === 'pdf') {
+            const thumbnailURL = getPDFThumbnail(fileURL);
+            currentImageDiv.innerHTML = `
+                <p style="color: #666; font-size: 11px; margin-bottom: 8px;">Fichier actuel ${lang.toUpperCase()} (PDF) :</p>
+                <div style="text-align: center;">
+                    ${thumbnailURL ? 
+                        `<img src="${thumbnailURL}" alt="Aperçu PDF ${lang}" style="max-width: 150px; max-height: 100px; border-radius: 8px; cursor: pointer;" 
+                             onclick="window.open('${fileURL}', '_blank')">` :
+                        `<div style="padding: 15px; background: #f3f4f6; border-radius: 8px; cursor: pointer;" onclick="window.open('${fileURL}', '_blank')">
+                            <div style="font-size: 32px; margin-bottom: 5px;">📄</div>
+                            <p style="color: #374151; font-size: 12px;">Menu PDF ${lang.toUpperCase()}</p>
+                        </div>`
+                    }
+                </div>
+                <p style="color: #10b981; font-size: 10px; margin-top: 5px;">✅ Uploadé</p>
+            `;
+        } else {
+            const previewURL = getPreviewImageURL(fileURL);
+            currentImageDiv.innerHTML = `
+                <p style="color: #666; font-size: 11px; margin-bottom: 8px;">Image actuelle ${lang.toUpperCase()} :</p>
+                <img src="${previewURL}" alt="Menu ${lang}" style="max-width: 150px; max-height: 100px; border-radius: 8px; cursor: pointer;" 
+                     onclick="window.open('${fileURL}', '_blank')">
+                <p style="color: #10b981; font-size: 10px; margin-top: 5px;">✅ Uploadé</p>
+            `;
+        }
+    } else {
+        currentImageDiv.innerHTML = `
+            <p style="color: #999; font-size: 11px; font-style: italic;">Aucun fichier ${lang.toUpperCase()}</p>
+            <p style="color: #ccc; font-size: 10px;">Uploadez un menu</p>
+        `;
+    }
+}
+
+// ===== NETTOYAGE =====
+
+/**
+ * Nettoyer l'aperçu (version ancienne)
+ */
+function clearImagePreview() {
+    const preview = document.getElementById('imagePreview');
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    if (preview) {
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+    }
+    
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+    }
+}
+
+/**
+ * NOUVELLE FONCTION : Nettoyer l'aperçu (version bilingue)
+ */
+function clearPreviewBilingual(lang) {
+    const preview = document.getElementById(`imagePreview${lang.toUpperCase()}`);
+    const uploadBtn = document.getElementById(`uploadBtn${lang.toUpperCase()}`);
+    
+    if (preview) {
+        preview.innerHTML = '';
+        preview.style.display = 'none';
+    }
+    
+    if (uploadBtn) {
+        uploadBtn.disabled = true;
+    }
+}
+
+// ===== ACTUALISATION =====
+
+/**
+ * Actualiser l'image actuelle (version ancienne)
+ */
+export function refreshCurrentImage() {
+    console.log('🔄 Actualisation du fichier...');
+    loadTodayImage().then(() => {
+        alert('✅ Fichier actualisé !');
+    });
+}
+
+/**
+ * NOUVELLE FONCTION : Actualiser tous les menus
+ */
+export async function refreshAllImages() {
+    console.log('🔄 Actualisation des deux menus...');
+    
+    try {
+        await loadTodayImagesBilingual();
+        alert('✅ Les deux menus ont été actualisés !');
+    } catch (error) {
+        console.error('❌ Erreur actualisation:', error);
+        alert('❌ Erreur lors de l\'actualisation');
+    }
+}
+
+// ===== UTILITAIRES =====
+
+/**
+ * Générer un thumbnail PDF via Cloudinary
  */
 function getPDFThumbnail(pdfURL) {
     try {
-        if (pdfURL.includes('cloudinary.com')) {
+        if (pdfURL.includes('cloudinary.com') && pdfURL.includes('.pdf')) {
             const parts = pdfURL.split('/upload/');
             if (parts.length === 2) {
-                // Transformer première page PDF en JPG
                 return `${parts[0]}/upload/w_300,h_200,c_fill,f_jpg,pg_1/${parts[1]}`;
             }
         }
@@ -392,7 +807,7 @@ function getPDFThumbnail(pdfURL) {
 }
 
 /**
- * TRANSFORMATION IMAGE via Cloudinary
+ * Transformation image via Cloudinary
  */
 function getPreviewImageURL(imageURL) {
     try {
@@ -410,29 +825,8 @@ function getPreviewImageURL(imageURL) {
 }
 
 /**
- * FONCTIONS UTILITAIRES
+ * Mettre à jour l'interface
  */
-function clearImagePreview() {
-    const preview = document.getElementById('imagePreview');
-    const uploadBtn = document.getElementById('uploadBtn');
-    
-    if (preview) {
-        preview.innerHTML = '';
-        preview.style.display = 'none';
-    }
-    
-    if (uploadBtn) {
-        uploadBtn.disabled = true;
-    }
-}
-
-export function refreshCurrentImage() {
-    console.log('🔄 Actualisation du fichier...');
-    loadTodayImage().then(() => {
-        alert('✅ Fichier actualisé !');
-    });
-}
-
 function updateImageInInterface() {
     const viewBtn = document.getElementById('viewImageBtn') || document.getElementById('viewMenuBtn');
     if (viewBtn) {
@@ -441,6 +835,9 @@ function updateImageInInterface() {
     }
 }
 
+/**
+ * Afficher les détails d'un fichier
+ */
 export function showImageDetails(imageURL) {
     const details = `URL du fichier: ${imageURL}
 
@@ -455,21 +852,32 @@ ${currentFileType === 'pdf' ?
     alert(details);
 }
 
+// ===== EXPOSITION GLOBALE =====
+
 /**
- * EXPOSER LES FONCTIONS GLOBALEMENT
+ * Exposer les fonctions globalement
  */
 function exposeImageFunctions() {
+    // Fonctions anciennes (compatibilité)
     window.previewImage = previewImage;
     window.uploadImage = uploadImage;
     window.refreshCurrentImage = refreshCurrentImage;
     window.showImageDetails = showImageDetails;
     window.loadTodayImage = loadTodayImage;
     
-    // Fonction pour que le frontend public puisse récupérer les données
+    // NOUVELLES FONCTIONS BILINGUES
+    window.previewImageBilingual = previewImageBilingual;
+    window.uploadImageBilingual = uploadImageBilingual;
+    window.refreshAllImages = refreshAllImages;
+    window.loadTodayImagesBilingual = loadTodayImagesBilingual;
+    
+    // Fonctions pour récupérer les données
     window.getCurrentFileData = () => ({
         url: currentFileURL,
         type: currentFileType
     });
     
-    console.log('✅ Fonctions image/PDF exposées globalement');
+    window.getCurrentFilesBilingual = () => currentFiles;
+    
+    console.log('✅ Fonctions image/PDF bilingues exposées globalement');
 }

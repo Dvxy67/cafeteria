@@ -817,3 +817,117 @@ body::before {
     max-width: 100%;
     height: auto;
 }
+
+/* ===== UPLOAD BILINGUE ===== */
+
+.bilingual-upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+.upload-column {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s ease;
+}
+
+.upload-column:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.upload-column-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.upload-column-title .flag {
+    font-size: 24px;
+}
+
+.image-preview {
+    min-height: 120px;
+    margin: 16px 0;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: none;
+    text-align: center;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.current-file-display {
+    min-height: 100px;
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.current-file-display img {
+    max-width: 150px;
+    max-height: 100px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.upload-column .action-btn {
+    width: 100%;
+    margin-top: 12px;
+}
+
+.global-refresh-section {
+    text-align: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.global-refresh-section .action-btn {
+    margin-bottom: 12px;
+}
+
+.refresh-help {
+    color: #6b7280;
+    font-size: 12px;
+    font-style: italic;
+}
+
+/* Responsive pour upload bilingue */
+@media (max-width: 768px) {
+    .bilingual-upload-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .upload-column {
+        padding: 20px;
+    }
+}

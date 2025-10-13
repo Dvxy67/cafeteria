@@ -17,6 +17,23 @@ export const CONFIG = {
     IMAGE_URL: "https://res.cloudinary.com/dvtv7bku4/image/upload/v1732203557/cafeteria-menus/menu_placeholder.jpg"
 };
 
+// Configuration des langues (NOUVEAU)
+export const LANGUAGE_CONFIG = {
+    DEFAULT_LANGUAGE: 'fr',
+    AVAILABLE_LANGUAGES: ['fr', 'nl'],
+    STORAGE_KEY: 'user_language_preference',
+    LABELS: {
+        fr: {
+            viewMenu: 'Voir le menu',
+            menuTitle: 'Menu du jour'
+        },
+        nl: {
+            viewMenu: 'Bekijk menu',
+            menuTitle: 'Menu van de dag'
+        }
+    }
+};
+
 // Variables globales d'état
 export let appState = {
     votes: {},

@@ -9,35 +9,108 @@ import {
     selectOption, 
     showImageModal, 
     closeImageModal,
-    updateMenuFile
+    updateMenuFile,
+    switchLanguage,          
+    loadUserLanguagePreference
 } from './ui.js';
 import { submitVote } from './voting.js';
 import { getTodayFileData, getModalImageURL } from './cloudinaryService.js';
 
 // Charger le fichier du jour (image ou PDF)
+// Charger les fichiers du jour (VERSION BILINGUE : FR + NL)
 async function loadTodayFile() {
     try {
-        console.log('📄 Chargement du fichier du jour...');
+        console.log('🖼️ Chargement des fichiers du jour (bilingue)...');
         
-        const fileData = await getTodayFileData();
+        // Importer la nouvelle fonction bilingue
+        const { getTodayFileDataBilingual, getModalImageURL } = await import('./cloudinaryService.js');
+        const filesData = await getTodayFileDataBilingual();
         
-        if (fileData && fileData.url) {
-            console.log('✅ Fichier trouvé:', fileData);
-            
-            // Si c'est une image, appliquer les transformations Cloudinary
-            if (fileData.type === 'image') {
-                const modalImageURL = getModalImageURL(fileData.url);
-                updateMenuFile(modalImageURL, 'image');
-            } else {
-                // Si c'est un PDF, utiliser l'URL directement
-                updateMenuFile(fileData.url, 'pdf');
-            }
-        } else {
-            console.log('📷 Utilisation de l\'image par défaut');
-            updateMenuFile(CONFIG.IMAGE_URL, 'image');
+        console.log('📦 Données fichiers récupérées:', filesData);
+        
+        // Initialiser les stockages globaux
+        if (!window.menuImages) {
+            window.menuImages = { fr: null, nl: null };
         }
+        if (!window.menuFileTypes) {
+            window.menuFileTypes = { fr: 'image', nl: 'image' };
+        }
+        
+        // Traiter le fichier FRANÇAIS
+        if (filesData.fr && filesData.fr.url) {
+            if (filesData.fr.type === 'image') {
+                // Appliquer transformation Cloudinary pour images
+                window.menuImages.fr = getModalImageURL(filesData.fr.url);
+            } else {
+                // PDF : utiliser l'URL directement
+                window.menuImages.fr = filesData.fr.url;
+            }
+            window.menuFileTypes.fr = filesData.fr.type;
+            console.log('✅ Fichier FR chargé:', window.menuImages.fr, `(${filesData.fr.type})`);
+        } else {
+            // Pas de fichier FR → utiliser l'image par défaut
+            window.menuImages.fr = CONFIG.IMAGE_URL;
+            window.menuFileTypes.fr = 'image';
+            console.log('📷 Fichier FR par défaut');
+        }
+        
+        // Traiter le fichier NÉERLANDAIS
+        if (filesData.nl && filesData.nl.url) {
+            if (filesData.nl.type === 'image') {
+                // Appliquer transformation Cloudinary pour images
+                window.menuImages.nl = getModalImageURL(filesData.nl.url);
+            } else {
+                // PDF : utiliser l'URL directement
+                window.menuImages.nl = filesData.nl.url;
+            }
+            window.menuFileTypes.nl = filesData.nl.type;
+            console.log('✅ Fichier NL chargé:', window.menuImages.nl, `(${filesData.nl.type})`);
+        } else {
+            // Pas de fichier NL → utiliser la même que FR (ou image par défaut)
+            window.menuImages.nl = window.menuImages.fr;
+            window.menuFileTypes.nl = window.menuFileTypes.fr;
+            console.log('📷 Fichier NL = FR (fallback)');
+        }
+        
+        console.log('📊 Résumé chargement:', {
+            fr: window.menuImages.fr ? '✅' : '❌',
+            nl: window.menuImages.nl ? '✅' : '❌',
+            types: window.menuFileTypes
+        });
+        
+        // Charger la langue préférée de l'utilisateur
+        const userLang = localStorage.getItem('user_language_preference') || 'fr';
+        console.log(`👤 Langue préférée utilisateur: ${userLang}`);
+        
+        // Afficher le fichier correspondant à la langue préférée
+        const fileToDisplay = window.menuImages[userLang];
+        const typeToDisplay = window.menuFileTypes[userLang];
+        
+        updateMenuFile(fileToDisplay, typeToDisplay);
+        
+        // Appliquer visuellement la langue préférée (activer le bon bouton)
+        setTimeout(() => {
+            if (typeof window.switchLanguage === 'function') {
+                window.switchLanguage(userLang);
+            } else {
+                console.warn('⚠️ switchLanguage pas encore disponible');
+            }
+        }, 300);
+        
+        console.log('✅ Fichiers bilingues chargés avec succès');
+        
     } catch (error) {
-        console.error('❌ Erreur chargement fichier:', error);
+        console.error('❌ Erreur chargement fichiers bilingues:', error);
+        
+        // Fallback complet vers image par défaut
+        window.menuImages = {
+            fr: CONFIG.IMAGE_URL,
+            nl: CONFIG.IMAGE_URL
+        };
+        window.menuFileTypes = {
+            fr: 'image',
+            nl: 'image'
+        };
         updateMenuFile(CONFIG.IMAGE_URL, 'image');
     }
 }
@@ -105,6 +178,7 @@ function exposeGlobalFunctions() {
     window.showImageModal = showImageModal;
     window.closeImageModal = closeImageModal;
     window.submitVote = submitVote;
+    window.switchLanguage = switchLanguage;
 }
 
 // Nettoyer lors du déchargement
