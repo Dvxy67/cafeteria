@@ -157,6 +157,56 @@ export async function loadTodayImagesBilingual() {
 
 // ===== RÉCUPÉRATION DEPUIS FIREBASE =====
 
+async function fetchLatestDocument(collectionName) {
+    try {
+        const { collection, query, orderBy, limit, getDocs } = window.firebaseFunctions || {};
+
+        if (!collection || !query || !orderBy || !limit || !getDocs) {
+            console.warn('⚠️ Fonctions de requête Firestore indisponibles');
+            return null;
+        }
+
+        const collRef = collection(appState.db, collectionName);
+        const q = query(collRef, orderBy('date', 'desc'), limit(1));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+            const docSnap = snapshot.docs[0];
+            return { id: docSnap.id, data: docSnap.data() };
+        }
+
+        return null;
+    } catch (error) {
+        console.error(`❌ Erreur récupération dernier document (${collectionName}):`, error);
+        return null;
+    }
+}
+
+function formatMenuFilesData(data = {}) {
+    return {
+        fr: {
+            url: data.fileURL_fr || data.fileURL || null,
+            type: data.fileType_fr || data.fileType || 'image',
+            publicId: data.publicId_fr || data.publicId || null
+        },
+        nl: {
+            url: data.fileURL_nl || data.fileURL || null,
+            type: data.fileType_nl || data.fileType || 'image',
+            publicId: data.publicId_nl || data.publicId || null
+        }
+    };
+}
+
+function formatLegacyData(data = {}) {
+    const fallback = {
+        url: data.imageURL || data.url || null,
+        type: 'image',
+        publicId: data.publicId || null
+    };
+
+    return { fr: fallback, nl: fallback };
+}
+
 /**
  * Récupérer le fichier depuis Firebase (version ancienne, compatibilité)
  */
@@ -168,16 +218,16 @@ async function getTodayImageURL() {
         }
 
         const todayKey = UTILS.getTodayKey();
-        const { doc, getDoc } = window.firebaseFunctions;
-        
+        const { doc, getDoc } = window.firebaseFunctions || {};
+
         // 1. Essayer d'abord la nouvelle collection "menu_files"
         const fileDocRef = doc(appState.db, "menu_files", todayKey);
         const fileDocSnap = await getDoc(fileDocRef);
-        
+
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
             console.log('📄 Document fichier trouvé dans menu_files');
-            
+
             // Priorité au français si disponible
             if (data.fileURL_fr) {
                 return {
@@ -194,26 +244,44 @@ async function getTodayImageURL() {
                 };
             }
         }
-        
+
+        // 1.bis : utiliser le dernier fichier disponible
+        const latestMenuFile = await fetchLatestDocument('menu_files');
+        if (latestMenuFile) {
+            console.log(`📚 Utilisation du dernier fichier menu_files (${latestMenuFile.id})`);
+            const formatted = formatMenuFilesData(latestMenuFile.data);
+            return formatted.fr.url
+                ? { ...formatted.fr }
+                : formatted.nl;
+        }
+
         // 2. Si pas trouvé, essayer l'ancienne collection "menu_images"
         console.log('📋 Tentative dans menu_images (compatibilité)...');
         const imageDocRef = doc(appState.db, "menu_images", todayKey);
         const imageDocSnap = await getDoc(imageDocRef);
-        
+
         if (imageDocSnap.exists()) {
             const data = imageDocSnap.data();
             console.log('📄 Document image trouvé dans menu_images');
-            
+
             return {
                 url: data.imageURL,
                 type: 'image',
                 publicId: data.publicId
             };
         }
-        
+
+        // 2.bis : utiliser la dernière image legacy disponible
+        const latestLegacyImage = await fetchLatestDocument('menu_images');
+        if (latestLegacyImage) {
+            console.log(`🗂️ Utilisation de l'image legacy ${latestLegacyImage.id}`);
+            const formatted = formatLegacyData(latestLegacyImage.data);
+            return formatted.fr;
+        }
+
         console.log('📄 Aucun document trouvé pour aujourd\'hui');
         return null;
-        
+
     } catch (error) {
         console.error('❌ Erreur récupération fichier:', error);
         return null;
@@ -231,32 +299,28 @@ async function getTodayImageURLBilingual() {
         }
 
         const todayKey = UTILS.getTodayKey();
-        const { doc, getDoc } = window.firebaseFunctions;
-        
+        const { doc, getDoc } = window.firebaseFunctions || {};
+
         const fileDocRef = doc(appState.db, "menu_files", todayKey);
         const fileDocSnap = await getDoc(fileDocRef);
-        
+
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
             console.log('📄 Document bilingue trouvé:', data);
-            
-            return {
-                fr: {
-                    url: data.fileURL_fr || null,
-                    type: data.fileType_fr || 'image',
-                    publicId: data.publicId_fr || null
-                },
-                nl: {
-                    url: data.fileURL_nl || null,
-                    type: data.fileType_nl || 'image',
-                    publicId: data.publicId_nl || null
-                }
-            };
+
+            return formatMenuFilesData(data);
         }
-        
+
+        // 1.bis : tenter de récupérer le dernier document disponible
+        const latestMenuFile = await fetchLatestDocument('menu_files');
+        if (latestMenuFile) {
+            console.log(`📚 Utilisation du dernier fichier bilingue (${latestMenuFile.id})`);
+            return formatMenuFilesData(latestMenuFile.data);
+        }
+
         console.log('📭 Aucun document bilingue trouvé');
         return { fr: null, nl: null };
-        
+
     } catch (error) {
         console.error('❌ Erreur récupération bilingue:', error);
         return { fr: null, nl: null };

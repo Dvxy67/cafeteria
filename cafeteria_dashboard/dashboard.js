@@ -19,8 +19,8 @@ import {
 
 // Import des modules Firebase
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
-import { 
-    getFirestore, 
+import {
+    getFirestore,
     collection,
     getDocs,
     doc,
@@ -49,7 +49,12 @@ async function initFirebase() {
             doc,
             getDoc,
             setDoc,
-            deleteDoc
+            deleteDoc,
+            collection,
+            query,
+            orderBy,
+            limit,
+            getDocs
         };
         
         return true;

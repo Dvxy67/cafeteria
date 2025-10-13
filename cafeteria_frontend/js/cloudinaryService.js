@@ -5,10 +5,63 @@ import { getTodayKey } from './utils.js';
 
 // Configuration Cloudinary
 const CLOUDINARY_CONFIG = {
-    cloudName: 'dvtv7bku4', 
-    uploadPreset: 'cafeteria-menu-uploads', 
-    folder: 'cafeteria-menus' 
+    cloudName: 'dvtv7bku4',
+    uploadPreset: 'cafeteria-menu-uploads',
+    folder: 'cafeteria-menus'
 };
+
+function formatBilingualDataFromMenuFiles(data = {}) {
+    return {
+        fr: {
+            url: data.fileURL_fr || data.fileURL || null,
+            type: data.fileType_fr || data.fileType || 'image',
+            publicId: data.publicId_fr || data.publicId || null
+        },
+        nl: {
+            url: data.fileURL_nl || data.fileURL || null,
+            type: data.fileType_nl || data.fileType || 'image',
+            publicId: data.publicId_nl || data.publicId || null
+        }
+    };
+}
+
+function formatBilingualDataFromLegacy(data = {}) {
+    const fallbackData = {
+        url: data.imageURL || data.url || null,
+        type: 'image',
+        publicId: data.publicId || null
+    };
+
+    return {
+        fr: fallbackData,
+        nl: fallbackData
+    };
+}
+
+async function fetchLatestDocument(collectionName) {
+    try {
+        const { collection, query, orderBy, limit, getDocs } = window.firebaseFunctions || {};
+
+        if (!collection || !query || !orderBy || !limit || !getDocs) {
+            console.warn('⚠️ Fonctions de requête Firestore indisponibles');
+            return null;
+        }
+
+        const collRef = collection(appState.db, collectionName);
+        const q = query(collRef, orderBy('date', 'desc'), limit(1));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+            const docSnap = snapshot.docs[0];
+            return { id: docSnap.id, data: docSnap.data() };
+        }
+
+        return null;
+    } catch (error) {
+        console.error(`❌ Erreur lors de la recherche du dernier document (${collectionName}):`, error);
+        return null;
+    }
+}
 
 // Upload d'un fichier vers Cloudinary (image ou PDF)
 export async function uploadMenuImage(file) {
@@ -99,63 +152,58 @@ async function saveFileURL(dateKey, fileURL, publicId, fileType) {
 // NOUVELLE : Récupérer les URLs des DEUX fichiers du jour (FR + NL)
 export async function getTodayFileDataBilingual() {
     try {
-        const { doc, getDoc } = window.firebaseFunctions;
+        const { doc, getDoc } = window.firebaseFunctions || {};
+
+        if (!doc || !getDoc) {
+            console.warn('⚠️ Fonctions Firestore minimales indisponibles');
+            throw new Error('Firestore non disponible');
+        }
+
         const todayKey = getTodayKey();
-        
+
         // 1. Essayer d'abord la nouvelle collection "menu_files"
-        const fileDocRef = doc(appState.db, "menu_files", todayKey);
+        const fileDocRef = doc(appState.db, 'menu_files', todayKey);
         const fileDocSnap = await getDoc(fileDocRef);
-        
+
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
             console.log('📦 Données fichiers récupérées:', data);
-            
-            // Support nouveau format bilingue
-            const result = {
-                fr: {
-                    url: data.fileURL_fr || data.fileURL || null,
-                    type: data.fileType_fr || data.fileType || 'image',
-                    publicId: data.publicId_fr || data.publicId || null
-                },
-                nl: {
-                    url: data.fileURL_nl || data.fileURL || null,
-                    type: data.fileType_nl || data.fileType || 'image',
-                    publicId: data.publicId_nl || data.publicId || null
-                }
-            };
-            
+            const result = formatBilingualDataFromMenuFiles(data);
             console.log('🖼️ Données finales (bilingue):', result);
             return result;
         }
-        
+
+        // 1.bis : récupérer le dernier fichier disponible si pas de document pour aujourd'hui
+        const latestMenuFile = await fetchLatestDocument('menu_files');
+        if (latestMenuFile) {
+            console.log(`📚 Dernier fichier disponible utilisé (${latestMenuFile.id})`);
+            return formatBilingualDataFromMenuFiles(latestMenuFile.data);
+        }
+
         // 2. Si pas trouvé, essayer l'ancienne collection "menu_images" (compatibilité)
         console.log('📋 Tentative dans menu_images...');
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
+        const imageDocRef = doc(appState.db, 'menu_images', todayKey);
         const imageDocSnap = await getDoc(imageDocRef);
-        
+
         if (imageDocSnap.exists()) {
             const data = imageDocSnap.data();
             console.log('📄 Image trouvée dans menu_images:', data);
-            
-            // Support ancien format (une seule image pour les deux langues)
-            const fallbackData = {
-                url: data.imageURL,
-                type: 'image',
-                publicId: data.publicId
-            };
-            
-            return {
-                fr: fallbackData,
-                nl: fallbackData  // Même image pour les deux langues
-            };
+            return formatBilingualDataFromLegacy(data);
         }
-        
+
+        // 2.bis : récupérer la dernière image legacy disponible
+        const latestLegacyImage = await fetchLatestDocument('menu_images');
+        if (latestLegacyImage) {
+            console.log(`🗂️ Image legacy utilisée (${latestLegacyImage.id})`);
+            return formatBilingualDataFromLegacy(latestLegacyImage.data);
+        }
+
         console.log('📭 Aucun fichier trouvé pour aujourd\'hui');
         return {
             fr: { url: null, type: 'image', publicId: null },
             nl: { url: null, type: 'image', publicId: null }
         };
-        
+
     } catch (error) {
         console.error('❌ Erreur récupération fichiers bilingues:', error);
         return {
