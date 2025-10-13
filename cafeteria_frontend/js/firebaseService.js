@@ -8,13 +8,18 @@ import { getTodayKey } from './utils.js';
 export async function initializeFirebase() {
     try {
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js');
-        const { 
-            getFirestore, 
-            doc, 
-            setDoc, 
-            getDoc, 
+        const {
+            getFirestore,
+            doc,
+            setDoc,
+            getDoc,
             onSnapshot,
-            deleteDoc 
+            deleteDoc,
+            collection,
+            query,
+            orderBy,
+            limit,
+            getDocs
         } = await import('https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js');
 
         const app = initializeApp(firebaseConfig);
@@ -26,7 +31,12 @@ export async function initializeFirebase() {
             setDoc,
             getDoc,
             onSnapshot,
-            deleteDoc
+            deleteDoc,
+            collection,
+            query,
+            orderBy,
+            limit,
+            getDocs
         };
         
         return true;

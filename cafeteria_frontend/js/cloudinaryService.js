@@ -98,7 +98,7 @@ async function saveFileURL(dateKey, fileURL, publicId, fileType) {
 // Récupérer l'URL et le type du fichier du jour
 export async function getTodayFileData() {
     try {
-        const { doc, getDoc } = window.firebaseFunctions;
+        const { doc, getDoc, collection, query, orderBy, limit, getDocs } = window.firebaseFunctions;
         const todayKey = getTodayKey();
         
         // 1. Essayer d'abord la nouvelle collection "menu_files"
@@ -132,11 +132,89 @@ export async function getTodayFileData() {
             };
         }
         
-        console.log('📄 Aucun fichier trouvé pour aujourd\'hui');
+        console.log('📄 Aucun fichier trouvé pour aujourd\'hui, recherche du dernier fichier disponible...');
+
+        // 3. Rechercher le dernier fichier disponible dans menu_files
+        const latestFileData = await getLatestMenuFile(collection, query, orderBy, limit, getDocs);
+        if (latestFileData) {
+            console.log('📄 Utilisation du dernier fichier menu_files:', latestFileData);
+            return latestFileData;
+        }
+
+        // 4. En dernier recours, récupérer la dernière image de menu_images (compatibilité)
+        const legacyImageData = await getLatestLegacyImage(collection, query, orderBy, limit, getDocs);
+        if (legacyImageData) {
+            console.log('📄 Utilisation de la dernière image menu_images (legacy):', legacyImageData);
+            return legacyImageData;
+        }
+
         return null;
         
     } catch (error) {
         console.error('Erreur récupération fichier:', error);
+        return null;
+    }
+}
+
+// Récupère le dernier fichier disponible dans la collection menu_files
+async function getLatestMenuFile(collectionFn, queryFn, orderByFn, limitFn, getDocsFn) {
+    try {
+        if (!collectionFn || !queryFn || !orderByFn || !limitFn || !getDocsFn) {
+            console.warn('⚠️ Fonctions de requête Firestore avancées indisponibles');
+            return null;
+        }
+
+        const filesCollection = collectionFn(appState.db, 'menu_files');
+        const latestQuery = queryFn(filesCollection, orderByFn('uploadDate', 'desc'), limitFn(1));
+        const snapshot = await getDocsFn(latestQuery);
+
+        if (!snapshot.empty) {
+            const docSnap = snapshot.docs[0];
+            const data = docSnap.data();
+
+            if (data?.fileURL) {
+                return {
+                    url: data.fileURL,
+                    type: data.fileType || 'image',
+                    publicId: data.publicId
+                };
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Erreur lors de la récupération du dernier fichier menu_files:', error);
+        return null;
+    }
+}
+
+// Récupère la dernière image disponible dans la collection legacy menu_images
+async function getLatestLegacyImage(collectionFn, queryFn, orderByFn, limitFn, getDocsFn) {
+    try {
+        if (!collectionFn || !queryFn || !orderByFn || !limitFn || !getDocsFn) {
+            return null;
+        }
+
+        const imagesCollection = collectionFn(appState.db, 'menu_images');
+        const latestQuery = queryFn(imagesCollection, orderByFn('date', 'desc'), limitFn(1));
+        const snapshot = await getDocsFn(latestQuery);
+
+        if (!snapshot.empty) {
+            const docSnap = snapshot.docs[0];
+            const data = docSnap.data();
+
+            if (data?.imageURL) {
+                return {
+                    url: data.imageURL,
+                    type: 'image',
+                    publicId: data.publicId
+                };
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Erreur lors de la récupération de la dernière image legacy:', error);
         return null;
     }
 }

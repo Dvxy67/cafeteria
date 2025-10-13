@@ -49,7 +49,12 @@ async function initFirebase() {
             doc,
             getDoc,
             setDoc,
-            deleteDoc
+            deleteDoc,
+            collection,
+            getDocs,
+            orderBy,
+            query,
+            limit
         };
         
         return true;
