@@ -6,6 +6,7 @@ import { getTodayKey } from './utils.js';
 import { updateSubmitButton } from './ui.js';
 
 // Soumettre un vote
+// Soumettre un vote
 export async function submitVote() {
     const userName = document.getElementById('userName').value.trim();
     const selectedChoice = document.querySelector('input[name="cantine"]:checked');
@@ -58,13 +59,10 @@ export async function submitVote() {
             localStorage.setItem(`user_voted_${todayKey}`, 'true');
             appState.hasVotedToday = true;
             
-            if (appState.isAdminLoggedIn) {
-                document.getElementById('formSection').style.display = 'none';
-                document.getElementById('resultsSection').style.display = 'block';
-            } else {
-                document.getElementById('formSection').style.display = 'none';
-                document.getElementById('successMessage').style.display = 'block';
-            }
+            // 🔒 NE JAMAIS AFFICHER les résultats pour les utilisateurs normaux
+            document.getElementById('formSection').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'block';
+            // Résultats restent toujours cachés
             
             alert('Merci ! Votre choix a été enregistré.');
         } else {

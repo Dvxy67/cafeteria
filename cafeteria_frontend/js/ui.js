@@ -112,24 +112,24 @@ export function updateVotingStatusDisplay() {
     const closedMessage = document.getElementById('closedMessage');
     const resultsSection = document.getElementById('resultsSection');
     
+    // 🔒 TOUJOURS MASQUER les résultats pour les utilisateurs
+    if (resultsSection) resultsSection.style.display = 'none';
+    
     if (!appState.isVotingOpen) {
         // Vote fermé
         if (formSection) formSection.style.display = 'none';
         if (successMessage) successMessage.style.display = 'none';
         if (closedMessage) closedMessage.style.display = 'block';
-        if (resultsSection) resultsSection.style.display = 'block';
     } else if (appState.hasVotedToday) {
         // A déjà voté
         if (formSection) formSection.style.display = 'none';
         if (closedMessage) closedMessage.style.display = 'none';
         if (successMessage) successMessage.style.display = 'block';
-        if (resultsSection) resultsSection.style.display = 'block';
     } else {
         // Peut encore voter
         if (formSection) formSection.style.display = 'block';
         if (successMessage) successMessage.style.display = 'none';
         if (closedMessage) closedMessage.style.display = 'none';
-        if (resultsSection) resultsSection.style.display = 'none';
     }
 }
 

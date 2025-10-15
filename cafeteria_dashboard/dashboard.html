@@ -71,33 +71,81 @@
 
             <!-- Section Upload Image (Admin uniquement) -->
             <div class="image-upload-section" id="imageUploadSection" style="display: none;">
-                <h3>🖼️ Image du menu</h3>
+                <h3>🖼️ Menus du jour (Bilingue)</h3>
 
-                <div class="upload-container">
-                    <div class="upload-area" onclick="document.getElementById('imageUpload').click()">
-                        <div class="upload-icon">📁</div>
-                        <p>Cliquez pour sélectionner une image du menu</p>
-                        <small>JPG, PNG, GIF, WebP - Max 5MB</small>
-                    </div>
-
-                    <input type="file" id="imageUpload" accept="image/*,.pdf,application/pdf" style="display: none;"
-                        onchange="previewImage()">
-
-                    <!-- Aperçu -->
-                    <div id="imagePreview"></div>
-
-                    <!-- Boutons -->
-                    <div class="upload-actions">
-                        <button class="action-btn btn-upload" id="uploadBtn" onclick="uploadImage()" disabled>
-                            📤 Uploader
+                <!-- NOUVEAU : Grille bilingue -->
+                <div class="bilingual-upload-grid">
+                    
+                    <!-- Colonne FRANÇAIS -->
+                    <div class="upload-column">
+                        <div class="upload-column-title">
+                            <span class="flag">🇫🇷</span>
+                            <span>Menu Français</span>
+                        </div>
+                        
+                        <div class="upload-area" onclick="document.getElementById('imageUploadFR').click()">
+                            <div class="upload-icon">📁</div>
+                            <p>Cliquez pour sélectionner</p>
+                            <small>JPG, PNG, PDF - Max 10MB</small>
+                        </div>
+                        
+                        <input type="file" 
+                            id="imageUploadFR" 
+                            accept="image/*,.pdf,application/pdf" 
+                            style="display: none;"
+                            onchange="previewImageBilingual('fr')">
+                        
+                        <div id="imagePreviewFR" class="image-preview"></div>
+                        
+                        <button class="action-btn btn-upload" 
+                                id="uploadBtnFR" 
+                                onclick="uploadImageBilingual('fr')" 
+                                disabled>
+                            📤 Uploader FR
                         </button>
-                        <button class="action-btn btn-refresh" onclick="refreshCurrentImage()">
-                            🔄 Actualiser
-                        </button>
+                        
+                        <div id="currentImageDisplayFR" class="current-file-display"></div>
                     </div>
+                    
+                    <!-- Colonne NÉERLANDAIS -->
+                    <div class="upload-column">
+                        <div class="upload-column-title">
+                            <span class="flag">🇳🇱</span>
+                            <span>Menu Nederlands</span>
+                        </div>
+                        
+                        <div class="upload-area" onclick="document.getElementById('imageUploadNL').click()">
+                            <div class="upload-icon">📁</div>
+                            <p>Klik om te selecteren</p>
+                            <small>JPG, PNG, PDF - Max 10MB</small>
+                        </div>
+                        
+                        <input type="file" 
+                            id="imageUploadNL" 
+                            accept="image/*,.pdf,application/pdf" 
+                            style="display: none;"
+                            onchange="previewImageBilingual('nl')">
+                        
+                        <div id="imagePreviewNL" class="image-preview"></div>
+                        
+                        <button class="action-btn btn-upload" 
+                                id="uploadBtnNL" 
+                                onclick="uploadImageBilingual('nl')" 
+                                disabled>
+                            📤 Uploader NL
+                        </button>
+                        
+                        <div id="currentImageDisplayNL" class="current-file-display"></div>
+                    </div>
+                    
+                </div>
 
-                    <!-- Image actuelle -->
-                    <div id="currentImageDisplay"></div>
+                <!-- Bouton pour actualiser les deux -->
+                <div class="global-refresh-section">
+                    <button class="action-btn btn-refresh" onclick="refreshAllImages()">
+                        🔄 Actualiser les deux menus
+                    </button>
+                    <p class="refresh-help">Recharge les fichiers FR et NL depuis Firebase</p>
                 </div>
             </div>
 
