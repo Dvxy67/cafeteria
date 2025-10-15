@@ -3,9 +3,6 @@
 import { appState } from './config.js';
 import { getTodayKey } from './utils.js';
 
-// ===== CONSTANTES =====
-const CURRENT_MENU_DOC_ID = 'current_menu'; // Document permanent pour le menu actuel
-
 // Configuration Cloudinary
 const CLOUDINARY_CONFIG = {
     cloudName: 'dvtv7bku4', 
@@ -103,41 +100,18 @@ async function saveFileURL(dateKey, fileURL, publicId, fileType) {
 export async function getTodayFileDataBilingual() {
     try {
         const { doc, getDoc } = window.firebaseFunctions;
-        
-        // ===== 1️⃣ PRIORITÉ : Document permanent "current_menu" =====
-        console.log('📂 Chargement depuis current_menu (permanent)...');
-        const currentMenuRef = doc(appState.db, "menu_files", CURRENT_MENU_DOC_ID);
-        const currentMenuSnap = await getDoc(currentMenuRef);
-        
-        if (currentMenuSnap.exists()) {
-            const data = currentMenuSnap.data();
-            console.log('✅ Menu actuel chargé (permanent):', data);
-            
-            return {
-                fr: {
-                    url: data.fileURL_fr || null,
-                    type: data.fileType_fr || 'image',
-                    publicId: data.publicId_fr || null
-                },
-                nl: {
-                    url: data.fileURL_nl || null,
-                    type: data.fileType_nl || 'image',
-                    publicId: data.publicId_nl || null
-                }
-            };
-        }
-        
-        // ===== 2️⃣ FALLBACK : Chercher dans l'historique du jour =====
-        console.log('📋 Pas de current_menu, recherche dans l\'historique...');
         const todayKey = getTodayKey();
+        
+        // 1. Essayer d'abord la nouvelle collection "menu_files"
         const fileDocRef = doc(appState.db, "menu_files", todayKey);
         const fileDocSnap = await getDoc(fileDocRef);
         
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
-            console.log('📄 Document trouvé dans l\'historique:', data);
+            console.log('📦 Données fichiers récupérées:', data);
             
-            return {
+            // Support nouveau format bilingue
+            const result = {
                 fr: {
                     url: data.fileURL_fr || data.fileURL || null,
                     type: data.fileType_fr || data.fileType || 'image',
@@ -149,9 +123,12 @@ export async function getTodayFileDataBilingual() {
                     publicId: data.publicId_nl || data.publicId || null
                 }
             };
+            
+            console.log('🖼️ Données finales (bilingue):', result);
+            return result;
         }
         
-        // ===== 3️⃣ Ancienne collection (compatibilité) =====
+        // 2. Si pas trouvé, essayer l'ancienne collection "menu_images" (compatibilité)
         console.log('📋 Tentative dans menu_images...');
         const imageDocRef = doc(appState.db, "menu_images", todayKey);
         const imageDocSnap = await getDoc(imageDocRef);
@@ -160,15 +137,20 @@ export async function getTodayFileDataBilingual() {
             const data = imageDocSnap.data();
             console.log('📄 Image trouvée dans menu_images:', data);
             
+            // Support ancien format (une seule image pour les deux langues)
             const fallbackData = {
                 url: data.imageURL,
                 type: 'image',
                 publicId: data.publicId
             };
-            return { fr: fallbackData, nl: fallbackData };
+            
+            return {
+                fr: fallbackData,
+                nl: fallbackData  // Même image pour les deux langues
+            };
         }
         
-        console.log('📭 Aucun menu trouvé');
+        console.log('📭 Aucun fichier trouvé pour aujourd\'hui');
         return {
             fr: { url: null, type: 'image', publicId: null },
             nl: { url: null, type: 'image', publicId: null }

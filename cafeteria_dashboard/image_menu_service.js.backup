@@ -8,9 +8,6 @@ import {
     appState 
 } from './config.js';
 
-// ===== CONSTANTES =====
-const CURRENT_MENU_DOC_ID = 'current_menu'; // Document permanent pour le menu actuel
-
 // ===== VARIABLES GLOBALES =====
 
 // Variables anciennes (compatibilité)
@@ -226,94 +223,43 @@ async function getTodayImageURL() {
 /**
  * NOUVELLE FONCTION : Récupérer les deux fichiers depuis Firebase
  */
-
 async function getTodayImageURLBilingual() {
     try {
-        if (!appState.db || !window.firebaseFunctions) {
+        if (!appState.db) {
             console.warn('⚠️ Base de données non initialisée');
             return { fr: null, nl: null };
         }
 
+        const todayKey = UTILS.getTodayKey();
         const { doc, getDoc } = window.firebaseFunctions;
         
-        // ===== 1️⃣ PRIORITÉ : Charger depuis "current_menu" (permanent) =====
-        console.log('📂 Chargement depuis current_menu...');
-        const currentMenuRef = doc(appState.db, "menu_files", CURRENT_MENU_DOC_ID);
-        const currentMenuSnap = await getDoc(currentMenuRef);
-        
-        if (currentMenuSnap.exists()) {
-            const data = currentMenuSnap.data();
-            console.log('✅ Menu actuel trouvé:', data);
-            
-            return {
-                fr: {
-                    url: data.fileURL_fr || null,
-                    type: data.fileType_fr || 'image',
-                    publicId: data.publicId_fr || null,
-                    sourceDate: data.sourceDate_fr // Date d'origine
-                },
-                nl: {
-                    url: data.fileURL_nl || null,
-                    type: data.fileType_nl || 'image',
-                    publicId: data.publicId_nl || null,
-                    sourceDate: data.sourceDate_nl
-                }
-            };
-        }
-        
-        // ===== 2️⃣ FALLBACK : Si pas de current_menu, chercher dans l'historique =====
-        console.log('📋 Pas de current_menu, recherche dans l\'historique...');
-        const todayKey = UTILS.getTodayKey();
         const fileDocRef = doc(appState.db, "menu_files", todayKey);
         const fileDocSnap = await getDoc(fileDocRef);
         
         if (fileDocSnap.exists()) {
             const data = fileDocSnap.data();
-            console.log('📄 Document trouvé dans l\'historique:', data);
+            console.log('📄 Document bilingue trouvé:', data);
             
             return {
                 fr: {
-                    url: data.fileURL_fr || data.fileURL || null,
-                    type: data.fileType_fr || data.fileType || 'image',
-                    publicId: data.publicId_fr || data.publicId || null
+                    url: data.fileURL_fr || null,
+                    type: data.fileType_fr || 'image',
+                    publicId: data.publicId_fr || null
                 },
                 nl: {
-                    url: data.fileURL_nl || data.fileURL || null,
-                    type: data.fileType_nl || data.fileType || 'image',
-                    publicId: data.publicId_nl || data.publicId || null
+                    url: data.fileURL_nl || null,
+                    type: data.fileType_nl || 'image',
+                    publicId: data.publicId_nl || null
                 }
             };
         }
         
-        // ===== 3️⃣ Ancienne collection (compatibilité) =====
-        console.log('📋 Tentative dans menu_images...');
-        const imageDocRef = doc(appState.db, "menu_images", todayKey);
-        const imageDocSnap = await getDoc(imageDocRef);
-        
-        if (imageDocSnap.exists()) {
-            const data = imageDocSnap.data();
-            console.log('📄 Image trouvée dans menu_images:', data);
-            
-            const fallbackData = {
-                url: data.imageURL,
-                type: 'image',
-                publicId: data.publicId
-            };
-            return { fr: fallbackData, nl: fallbackData };
-        }
-        
-        console.log('📭 Aucun fichier trouvé');
-        return {
-            fr: { url: null, type: 'image', publicId: null },
-            nl: { url: null, type: 'image', publicId: null }
-        };
+        console.log('📭 Aucun document bilingue trouvé');
+        return { fr: null, nl: null };
         
     } catch (error) {
-        console.error('❌ Erreur récupération fichiers bilingues:', error);
-        return {
-            fr: { url: null, type: 'image', publicId: null },
-            nl: { url: null, type: 'image', publicId: null }
-        };
+        console.error('❌ Erreur récupération bilingue:', error);
+        return { fr: null, nl: null };
     }
 }
 
@@ -631,6 +577,9 @@ async function saveImageURLToDatabase(dateKey, fileURL, publicId, fileType) {
     }
 }
 
+/**
+ * NOUVELLE FONCTION : Sauvegarder dans Firebase (version bilingue)
+ */
 async function saveImageURLBilingual(dateKey, lang, fileURL, publicId, fileType) {
     try {
         if (!appState.db) {
@@ -639,12 +588,13 @@ async function saveImageURLBilingual(dateKey, lang, fileURL, publicId, fileType)
         }
 
         const { doc, setDoc, getDoc } = window.firebaseFunctions;
-        
-        // ===== 1️⃣ SAUVEGARDER DANS L'HISTORIQUE (avec la date) =====
         const fileDocRef = doc(appState.db, "menu_files", dateKey);
+        
+        // Charger le document existant pour ne pas écraser l'autre langue
         const docSnap = await getDoc(fileDocRef);
         const existingData = docSnap.exists() ? docSnap.data() : {};
         
+        // Préparer les nouvelles données
         const updatedData = {
             ...existingData,
             [`fileURL_${lang}`]: fileURL,
@@ -657,27 +607,8 @@ async function saveImageURLBilingual(dateKey, lang, fileURL, publicId, fileType)
         };
         
         await setDoc(fileDocRef, updatedData);
-        console.log(`✅ Historique sauvegardé pour ${lang.toUpperCase()}`);
         
-        // ===== 2️⃣ METTRE À JOUR LE DOCUMENT "CURRENT_MENU" (permanent) =====
-        const currentMenuRef = doc(appState.db, "menu_files", CURRENT_MENU_DOC_ID);
-        const currentMenuSnap = await getDoc(currentMenuRef);
-        const currentMenuData = currentMenuSnap.exists() ? currentMenuSnap.data() : {};
-        
-        const updatedCurrentMenu = {
-            ...currentMenuData,
-            [`fileURL_${lang}`]: fileURL,
-            [`publicId_${lang}`]: publicId,
-            [`fileType_${lang}`]: fileType,
-            [`uploadDate_${lang}`]: new Date().toISOString(),
-            [`sourceDate_${lang}`]: dateKey, // Garder trace de la date d'origine
-            lastUpdated: new Date().toISOString(),
-            provider: 'cloudinary'
-        };
-        
-        await setDoc(currentMenuRef, updatedCurrentMenu);
-        console.log(`✅ Menu actuel mis à jour pour ${lang.toUpperCase()}`);
-        
+        console.log(`✅ URL fichier ${lang.toUpperCase()} sauvegardée dans menu_files`);
         return true;
     } catch (error) {
         console.error(`❌ Erreur sauvegarde URL fichier ${lang.toUpperCase()}:`, error);
